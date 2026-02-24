@@ -11,5 +11,10 @@ public class GameTest : MonoBehaviour
             "Bot1",
             "Bot2"
         });
+
+        UIManager.Instance.RefreshUI(
+            GameManager.Instance.GetState(),
+            "0"  // "0" is Arturs player Id
+        );
     }
 }

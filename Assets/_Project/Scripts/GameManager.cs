@@ -27,12 +27,10 @@ public class GameManager : MonoBehaviour
 
         _state.StartGame(players);
 
-        // Deal all cards evenly
         int index = 0;
         while (_deck.Count > 0)
         {
-            _state.Players[index % _state.Players.Count]
-                .AddCard(_deck.Deal());
+            _state.Players[index % _state.Players.Count].AddCard(_deck.Deal());
             index++;
         }
 
@@ -57,16 +55,15 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
-    public void ResolveVeryu(int cardIndex)
+    public void ResolveBelieve(int cardIndex)
     {
-        bool correct = GameRules.ResolveVeryu(_state, cardIndex);
+        bool correct = GameRules.ResolveBelieve(_state, cardIndex);
         Player challenger = _state.CurrentPlayer;
-        Player betPlayer = _state.LastBetPlayer;
 
         if (correct)
         {
-            Debug.Log($"{challenger.Name} checked correctly! Pile goes to BITA!");
-            _state.ResolveBita();
+            Debug.Log($"{challenger.Name} checked correctly! Pile goes to discard!");
+            _state.ResolveDiscard();
         }
         else
         {
@@ -75,36 +72,35 @@ public class GameManager : MonoBehaviour
         }
 
         _state.CheckLoser();
-        if (_state.Phase == Bluff.Core.GamePhase.GameOver)
-            Debug.Log($"GAME OVER! {_state.Loser.Name} is the loser!");
+        if (_state.Phase == GamePhase.GameOver)
+            Debug.Log($"Game over! {_state.Loser.Name} is the loser!");
 
         _state.NextTurn();
         LogGameState();
     }
 
-    public void ResolveNeVeryu(int cardIndex)
+    public void ResolveBluff(int cardIndex)
     {
-        bool caughtLying = GameRules.ResolveNeVeryu(_state, cardIndex);
-        Player doubter = _state.CurrentPlayer;
+        bool caughtLying = GameRules.ResolveBluff(_state, cardIndex);
         Player betPlayer = _state.LastBetPlayer;
+        Player doubter = _state.CurrentPlayer;
 
         if (caughtLying)
         {
             Debug.Log($"{betPlayer.Name} was lying! Takes the pile!");
             _state.GivePileToPlayer(betPlayer);
-            _state.NextTurn();
         }
         else
         {
-            Debug.Log($"{doubter.Name} was wrong! Pile goes to BITA!");
-            _state.ResolveBita();
-            _state.NextTurn();
+            Debug.Log($"{doubter.Name} was wrong! Pile goes to discard!");
+            _state.ResolveDiscard();
         }
 
         _state.CheckLoser();
-        if (_state.Phase == Bluff.Core.GamePhase.GameOver)
-            Debug.Log($"GAME OVER! {_state.Loser.Name} is the loser!");
+        if (_state.Phase == GamePhase.GameOver)
+            Debug.Log($"Game over! {_state.Loser.Name} is the loser!");
 
+        _state.NextTurn();
         LogGameState();
     }
 
@@ -112,12 +108,12 @@ public class GameManager : MonoBehaviour
 
     private void LogGameState()
     {
-        Debug.Log($"--- Game State ---");
+        Debug.Log("--- Game State ---");
         Debug.Log($"Current turn: {_state.CurrentPlayer.Name}");
         Debug.Log($"Pile: {_state.Pile.Count} cards");
-        Debug.Log($"Bita: {_state.Bita.Count} cards");
+        Debug.Log($"Discard: {_state.Discard.Count} cards");
         foreach (Player p in _state.Players)
             Debug.Log($"{p.Name}: {p.CardCount} cards in hand");
-        Debug.Log($"-----------------");
+        Debug.Log("-----------------");
     }
 }

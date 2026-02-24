@@ -14,10 +14,9 @@ namespace Bluff.Core
         public GamePhase Phase { get; private set; } = GamePhase.WaitingForPlayers;
         public List<Player> Players { get; private set; } = new List<Player>();
         public List<Card> Pile { get; private set; } = new List<Card>();
-        public List<Card> Bita { get; private set; } = new List<Card>();
+        public List<Card> Discard { get; private set; } = new List<Card>();
         public int CurrentPlayerIndex { get; private set; } = 0;
 
-        // Last bet info
         public List<Card> LastBetCards { get; private set; } = new List<Card>();
         public Rank LastDeclaredRank { get; private set; }
         public int LastBetPlayerIndex { get; private set; }
@@ -42,9 +41,9 @@ namespace Bluff.Core
             LastBetPlayerIndex = Players.IndexOf(player);
         }
 
-        public void ResolveBita()
+        public void ResolveDiscard()
         {
-            Bita.AddRange(Pile);
+            Discard.AddRange(Pile);
             Pile.Clear();
             LastBetCards.Clear();
         }

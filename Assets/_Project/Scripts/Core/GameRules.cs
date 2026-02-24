@@ -43,19 +43,19 @@ namespace Bluff.Core
             return card.Rank == declaredRank;
         }
 
-        // Veryu - player believes, picks 1 card from last bet
-        // Returns true if card matches (pile goes to bita)
-        // Returns false if card doesnt match (challenger takes pile)
-        public static bool ResolveVeryu(GameState state, int cardIndex)
+        // Believe - player picks 1 card from last bet
+        // Returns true if card matches declared rank (pile goes to discard)
+        // Returns false if card does not match (challenger takes pile)
+        public static bool ResolveBelieve(GameState state, int cardIndex)
         {
             Card checkedCard = state.LastBetCards[cardIndex];
             return CheckCard(checkedCard, state.LastDeclaredRank);
         }
 
-        // Ne veryu - player doesnt believe, picks 1 card from last bet
-        // Returns true if card doesnt match (liar takes pile)
-        // Returns false if card matches (doubter takes pile... wait)
-        public static bool ResolveNeVeryu(GameState state, int cardIndex)
+        // Bluff - player challenges the last bet, picks 1 card
+        // Returns true if caught lying (liar takes pile)
+        // Returns false if telling truth (pile goes to discard)
+        public static bool ResolveBluff(GameState state, int cardIndex)
         {
             Card checkedCard = state.LastBetCards[cardIndex];
             return !CheckCard(checkedCard, state.LastDeclaredRank);
