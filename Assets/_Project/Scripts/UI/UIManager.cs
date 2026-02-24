@@ -8,22 +8,36 @@ public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
+    private Canvas _canvas;
+
+    // Panels
     private GameObject _topPanel;
     private GameObject _middlePanel;
     private GameObject _bottomPanel;
 
+    // Top panel
     private TextMeshProUGUI _opponentsText;
+
+    // Middle panel
     private TextMeshProUGUI _statusText;
     private TextMeshProUGUI _currentBetText;
     private TextMeshProUGUI _pileText;
     private TextMeshProUGUI _discardText;
-    private TextMeshProUGUI _handText;
 
+    // Bottom panel
+    private GameObject _handContainer;
     private Button _believeButton;
     private Button _bluffButton;
     private Button _rebetButton;
+    private Button _confirmBetButton;
+    private TextMeshProUGUI _selectionInfoText;
 
-    private Canvas _canvas;
+    // Card selection state
+    private List<CardView> _handCardViews = new List<CardView>();
+    private List<int> _selectedCardIndices = new List<int>();
+
+    // Local player id
+    private string _localPlayerId = "0";
 
     void Awake()
     {
@@ -37,8 +51,10 @@ public class UIManager : MonoBehaviour
         BuildUI();
     }
 
-    private GameObject CreatePanel(string name, float topAnchor,
-        float bottomAnchor, Color color)
+    // ── PANEL BUILDERS ──────────────────────────────────────
+
+    private GameObject CreatePanel(string name, float bottomAnchor,
+        float topAnchor, Color color)
     {
         GameObject panel = new GameObject(name);
         panel.transform.SetParent(_canvas.transform, false);
@@ -49,13 +65,13 @@ public class UIManager : MonoBehaviour
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
 
-        Image image = panel.AddComponent<Image>();
-        image.color = color;
+        Image img = panel.AddComponent<Image>();
+        img.color = color;
 
         return panel;
     }
 
-    private TextMeshProUGUI CreateText(GameObject parent, string defaultText,
+    private TextMeshProUGUI CreateText(GameObject parent, string text,
         int fontSize, Vector2 anchorMin, Vector2 anchorMax,
         TextAlignmentOptions alignment)
     {
@@ -65,11 +81,11 @@ public class UIManager : MonoBehaviour
         RectTransform rect = go.AddComponent<RectTransform>();
         rect.anchorMin = anchorMin;
         rect.anchorMax = anchorMax;
-        rect.offsetMin = new Vector2(10, 5);
-        rect.offsetMax = new Vector2(-10, -5);
+        rect.offsetMin = new Vector2(8, 4);
+        rect.offsetMax = new Vector2(-8, -4);
 
         TextMeshProUGUI tmp = go.AddComponent<TextMeshProUGUI>();
-        tmp.text = defaultText;
+        tmp.text = text;
         tmp.fontSize = fontSize;
         tmp.alignment = alignment;
         tmp.color = Color.white;
@@ -81,14 +97,14 @@ public class UIManager : MonoBehaviour
         Vector2 anchorMin, Vector2 anchorMax,
         UnityEngine.Events.UnityAction onClick)
     {
-        GameObject go = new GameObject("Button_" + label);
+        GameObject go = new GameObject("Btn_" + label);
         go.transform.SetParent(parent.transform, false);
 
         RectTransform rect = go.AddComponent<RectTransform>();
         rect.anchorMin = anchorMin;
         rect.anchorMax = anchorMax;
-        rect.offsetMin = new Vector2(5, 5);
-        rect.offsetMax = new Vector2(-5, -5);
+        rect.offsetMin = new Vector2(4, 4);
+        rect.offsetMax = new Vector2(-4, -4);
 
         Image img = go.AddComponent<Image>();
         img.color = color;
@@ -98,7 +114,6 @@ public class UIManager : MonoBehaviour
 
         GameObject textGo = new GameObject("Label");
         textGo.transform.SetParent(go.transform, false);
-
         RectTransform textRect = textGo.AddComponent<RectTransform>();
         textRect.anchorMin = Vector2.zero;
         textRect.anchorMax = Vector2.one;
@@ -107,66 +122,11 @@ public class UIManager : MonoBehaviour
 
         TextMeshProUGUI tmp = textGo.AddComponent<TextMeshProUGUI>();
         tmp.text = label;
-        tmp.fontSize = 20;
+        tmp.fontSize = 18;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = Color.white;
 
         return btn;
-    }
-
-    private void BuildTopPanel()
-    {
-        _topPanel = CreatePanel("TopPanel", 1f, 0.75f,
-            new Color(0.15f, 0.15f, 0.25f, 1f));
-
-        _opponentsText = CreateText(_topPanel, "Opponents loading...", 16,
-            Vector2.zero, Vector2.one, TextAlignmentOptions.Center);
-    }
-
-    private void BuildMiddlePanel()
-    {
-        _middlePanel = CreatePanel("MiddlePanel", 0.75f, 0.35f,
-            new Color(0.1f, 0.2f, 0.1f, 1f));
-
-        _statusText = CreateText(_middlePanel, "Waiting for game...", 18,
-            new Vector2(0, 0.7f), Vector2.one, TextAlignmentOptions.Center);
-
-        _currentBetText = CreateText(_middlePanel, "No active bet", 16,
-            new Vector2(0, 0.4f), new Vector2(1, 0.7f),
-            TextAlignmentOptions.Center);
-
-        _pileText = CreateText(_middlePanel, "Pile: 0", 16,
-            new Vector2(0, 0.2f), new Vector2(0.5f, 0.4f),
-            TextAlignmentOptions.Center);
-
-        _discardText = CreateText(_middlePanel, "Discard: 0", 16,
-            new Vector2(0.5f, 0.2f), new Vector2(1f, 0.4f),
-            TextAlignmentOptions.Center);
-    }
-
-    private void BuildBottomPanel()
-    {
-        _bottomPanel = CreatePanel("BottomPanel", 0.35f, 0f,
-            new Color(0.2f, 0.1f, 0.1f, 1f));
-
-        _handText = CreateText(_bottomPanel, "Your hand", 14,
-            new Vector2(0, 0.5f), Vector2.one,
-            TextAlignmentOptions.TopLeft);
-
-        _believeButton = CreateButton(_bottomPanel, "Believe",
-            new Color(0.2f, 0.6f, 0.2f),
-            new Vector2(0f, 0.05f), new Vector2(0.33f, 0.45f),
-            OnBelieveClicked);
-
-        _bluffButton = CreateButton(_bottomPanel, "Bluff!",
-            new Color(0.7f, 0.2f, 0.2f),
-            new Vector2(0.34f, 0.05f), new Vector2(0.66f, 0.45f),
-            OnBluffClicked);
-
-        _rebetButton = CreateButton(_bottomPanel, "Rebet",
-            new Color(0.2f, 0.3f, 0.7f),
-            new Vector2(0.67f, 0.05f), new Vector2(1f, 0.45f),
-            OnRebetClicked);
     }
 
     private void BuildUI()
@@ -176,59 +136,270 @@ public class UIManager : MonoBehaviour
         BuildBottomPanel();
     }
 
+    private void BuildTopPanel()
+    {
+        _topPanel = CreatePanel("TopPanel", 0.78f, 1f,
+            new Color(0.12f, 0.12f, 0.22f, 1f));
+
+        _opponentsText = CreateText(_topPanel, "Waiting for players...", 15,
+            Vector2.zero, Vector2.one, TextAlignmentOptions.Center);
+    }
+
+    private void BuildMiddlePanel()
+    {
+        _middlePanel = CreatePanel("MiddlePanel", 0.38f, 0.78f,
+            new Color(0.08f, 0.18f, 0.08f, 1f));
+
+        _statusText = CreateText(_middlePanel, "Starting...", 20,
+            new Vector2(0, 0.72f), Vector2.one, TextAlignmentOptions.Center);
+
+        _currentBetText = CreateText(_middlePanel, "No active bet", 15,
+            new Vector2(0, 0.42f), new Vector2(1, 0.72f),
+            TextAlignmentOptions.Center);
+
+        _pileText = CreateText(_middlePanel, "Pile: 0", 15,
+            new Vector2(0, 0.18f), new Vector2(0.5f, 0.42f),
+            TextAlignmentOptions.Center);
+
+        _discardText = CreateText(_middlePanel, "Discard: 0", 15,
+            new Vector2(0.5f, 0.18f), new Vector2(1f, 0.42f),
+            TextAlignmentOptions.Center);
+    }
+
+    private void BuildBottomPanel()
+    {
+        _bottomPanel = CreatePanel("BottomPanel", 0f, 0.38f,
+            new Color(0.18f, 0.08f, 0.08f, 1f));
+
+        // Hand scroll container
+        _handContainer = new GameObject("HandContainer");
+        _handContainer.transform.SetParent(_bottomPanel.transform, false);
+        RectTransform handRect = _handContainer.AddComponent<RectTransform>();
+        handRect.anchorMin = new Vector2(0, 0.45f);
+        handRect.anchorMax = Vector2.one;
+        handRect.offsetMin = new Vector2(5, 0);
+        handRect.offsetMax = new Vector2(-5, -5);
+
+        // Selection info text
+        _selectionInfoText = CreateText(_bottomPanel, "Select cards to bet",
+            13, new Vector2(0, 0.38f), new Vector2(1, 0.48f),
+            TextAlignmentOptions.Center);
+
+        // Action buttons row
+        _believeButton = CreateButton(_bottomPanel, "Believe",
+            new Color(0.15f, 0.55f, 0.15f),
+            new Vector2(0f, 0.02f), new Vector2(0.32f, 0.36f),
+            OnBelieveClicked);
+
+        _bluffButton = CreateButton(_bottomPanel, "Bluff!",
+            new Color(0.65f, 0.15f, 0.15f),
+            new Vector2(0.34f, 0.02f), new Vector2(0.66f, 0.36f),
+            OnBluffClicked);
+
+        _rebetButton = CreateButton(_bottomPanel, "Bet",
+            new Color(0.15f, 0.25f, 0.65f),
+            new Vector2(0.68f, 0.02f), new Vector2(1f, 0.36f),
+            OnBetClicked);
+
+        // Confirm bet button (hidden by default)
+        _confirmBetButton = CreateButton(_bottomPanel, "Confirm Bet",
+            new Color(0.8f, 0.5f, 0f),
+            new Vector2(0.25f, 0.02f), new Vector2(0.75f, 0.36f),
+            OnConfirmBetClicked);
+        _confirmBetButton.gameObject.SetActive(false);
+    }
+
+    // ── CARD HAND DISPLAY ────────────────────────────────────
+
+    private void BuildHandCards(List<Card> hand)
+    {
+        // Clear existing cards
+        foreach (Transform child in _handContainer.transform)
+            Destroy(child.gameObject);
+        _handCardViews.Clear();
+
+        if (hand.Count == 0) return;
+
+        float cardWidth = 0.12f;
+        float spacing = Mathf.Min(0.13f, 0.95f / hand.Count);
+
+        for (int i = 0; i < hand.Count; i++)
+        {
+            int index = i;
+            float x = 0.02f + i * spacing;
+
+            GameObject cardGo = new GameObject($"Card_{i}");
+            cardGo.transform.SetParent(_handContainer.transform, false);
+
+            RectTransform rect = cardGo.AddComponent<RectTransform>();
+            rect.anchorMin = new Vector2(x, 0.05f);
+            rect.anchorMax = new Vector2(x + cardWidth, 0.95f);
+            rect.offsetMin = new Vector2(2, 2);
+            rect.offsetMax = new Vector2(-2, -2);
+
+            Image img = cardGo.AddComponent<Image>();
+            img.color = Color.white;
+
+            CardView cardView = cardGo.AddComponent<CardView>();
+            cardView.Setup(hand[i], index);
+            cardView.OnCardClicked += OnHandCardClicked;
+
+            _handCardViews.Add(cardView);
+        }
+    }
+
+    private void OnHandCardClicked(int index)
+    {
+        GameState state = GameManager.Instance.GetState();
+        if (state.CurrentPlayer.Id != _localPlayerId) return;
+
+        if (_selectedCardIndices.Contains(index))
+        {
+            _selectedCardIndices.Remove(index);
+            _handCardViews[index].SetSelected(false);
+        }
+        else
+        {
+            if (_selectedCardIndices.Count >= 4) return;
+            _selectedCardIndices.Add(index);
+            _handCardViews[index].SetSelected(true);
+        }
+
+        UpdateSelectionInfo();
+    }
+
+    private void UpdateSelectionInfo()
+    {
+        int count = _selectedCardIndices.Count;
+        if (count == 0)
+        {
+            _selectionInfoText.text = "Select 1-4 cards to bet";
+            _confirmBetButton.gameObject.SetActive(false);
+            _rebetButton.gameObject.SetActive(true);
+        }
+        else
+        {
+            _selectionInfoText.text = $"{count} card(s) selected - pick rank to declare";
+            _confirmBetButton.gameObject.SetActive(false);
+            _rebetButton.gameObject.SetActive(true);
+        }
+    }
+
+    // ── BUTTON HANDLERS ──────────────────────────────────────
+
+    private void OnBelieveClicked()
+    {
+        GameState state = GameManager.Instance.GetState();
+        CardPickerUI.Instance.Show(state.LastBetCards, "believe", (cardIndex) =>
+        {
+            GameManager.Instance.ResolveBelieve(cardIndex);
+            RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
+        });
+    }
+
+    private void OnBluffClicked()
+    {
+        GameState state = GameManager.Instance.GetState();
+        CardPickerUI.Instance.Show(state.LastBetCards, "bluff", (cardIndex) =>
+        {
+            GameManager.Instance.ResolveBluff(cardIndex);
+            RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
+        });
+    }
+
+    private void OnBetClicked()
+    {
+        if (_selectedCardIndices.Count == 0)
+        {
+            _selectionInfoText.text = "Select at least 1 card first!";
+            return;
+        }
+
+        if (RankPickerUI.Instance == null)
+        {
+            Debug.LogError("RankPickerUI.Instance is null!");
+            return;
+        }
+
+        Debug.Log("Opening rank picker...");
+        RankPickerUI.Instance.Show((rank) =>
+        {
+            Debug.Log($"Rank selected: {rank}");
+            GameState state = GameManager.Instance.GetState();
+            Player localPlayer = state.Players.Find(p => p.Id == _localPlayerId);
+
+            List<Bluff.Core.Card> selectedCards = new List<Bluff.Core.Card>();
+            foreach (int idx in _selectedCardIndices)
+                selectedCards.Add(localPlayer.Hand[idx]);
+
+            bool success = GameManager.Instance.TryPlaceBet(selectedCards, rank);
+            if (success)
+            {
+                _selectedCardIndices.Clear();
+                RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
+            }
+        });
+    }
+
+    private void OnConfirmBetClicked()
+    {
+        // Reserved for future use
+    }
+
+    // ── REFRESH ──────────────────────────────────────────────
+
     public void RefreshUI(GameState state, string localPlayerId)
     {
+        _localPlayerId = localPlayerId;
         Player localPlayer = state.Players.Find(p => p.Id == localPlayerId);
         if (localPlayer == null) return;
 
+        // Opponents
         string opponents = "";
         foreach (Player p in state.Players)
             if (p.Id != localPlayerId)
-                opponents += $"{p.Name}: {p.CardCount} cards\n";
-        _opponentsText.text = opponents;
+                opponents += $"{p.Name}: {p.CardCount} cards    ";
+        _opponentsText.text = opponents.TrimEnd();
 
+        // Status
         bool isMyTurn = state.CurrentPlayer.Id == localPlayerId;
         _statusText.text = isMyTurn ? "YOUR TURN" : $"{state.CurrentPlayer.Name}'s turn";
+        _statusText.color = isMyTurn ? Color.green : Color.white;
 
+        // Bet info
         if (state.LastBetCards.Count > 0)
             _currentBetText.text = $"{state.LastBetPlayer.Name} bet " +
                 $"{state.LastBetCards.Count}x {state.LastDeclaredRank}";
         else
             _currentBetText.text = "No active bet - start a new round!";
 
+        // Pile and discard
         _pileText.text = $"Pile: {state.Pile.Count}";
         _discardText.text = $"Discard: {state.Discard.Count}";
 
-        string hand = "Your cards:\n";
-        for (int i = 0; i < localPlayer.Hand.Count; i++)
-            hand += $"[{i}] {localPlayer.Hand[i]}\n";
-        _handText.text = hand;
+        // Hand cards
+        BuildHandCards(localPlayer.Hand);
+        _selectedCardIndices.Clear();
+        UpdateSelectionInfo();
 
-        _believeButton.interactable = isMyTurn && state.LastBetCards.Count > 0;
-        _bluffButton.interactable = isMyTurn && state.LastBetCards.Count > 0;
+        // Button states
+        bool hasBet = state.LastBetCards.Count > 0;
+        bool canChallenge = hasBet && state.LastBetPlayer.Id != localPlayerId;
+
+        _believeButton.interactable = isMyTurn && canChallenge;
+        _bluffButton.interactable = isMyTurn && canChallenge;
         _rebetButton.interactable = isMyTurn;
+
+        if (!isMyTurn)
+            _selectionInfoText.text = $"Waiting for {state.CurrentPlayer.Name}...";
     }
 
     public void ShowGameOver(string loserName)
     {
         _statusText.text = $"{loserName} LOSES!";
+        _statusText.color = Color.red;
         _believeButton.interactable = false;
         _bluffButton.interactable = false;
         _rebetButton.interactable = false;
-    }
-
-    private void OnBelieveClicked()
-    {
-        Debug.Log("Believe clicked!");
-    }
-
-    private void OnBluffClicked()
-    {
-        Debug.Log("Bluff clicked!");
-    }
-
-    private void OnRebetClicked()
-    {
-        Debug.Log("Rebet clicked!");
     }
 }

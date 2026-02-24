@@ -12,9 +12,13 @@ public class GameTest : MonoBehaviour
             "Bot2"
         });
 
+        // Force Arturs turn for testing
+        while (GameManager.Instance.GetState().CurrentPlayer.Id != "0")
+            GameManager.Instance.GetState().NextTurn();
+
         UIManager.Instance.RefreshUI(
             GameManager.Instance.GetState(),
-            "0"  // "0" is Arturs player Id
+            "0"
         );
     }
 }
