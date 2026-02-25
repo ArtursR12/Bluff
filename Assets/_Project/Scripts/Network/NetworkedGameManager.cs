@@ -48,7 +48,7 @@ public class NetworkedGameManager : NetworkBehaviour
         }
     }
 
-    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
     private void RPC_RegisterPlayer(string playerName, RpcInfo info = default)
     {
         RegisterPlayer(info.Source, playerName);

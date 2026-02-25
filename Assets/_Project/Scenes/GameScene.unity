@@ -681,6 +681,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a504083d5d6023b4aa80ac44c82c9d6d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkManager
+  _gameManagerPrefab: {fileID: 1973836672430923876, guid: b02a1c55a20f56642b81d62e87b0735d, type: 3}
 --- !u!4 &1523211742
 Transform:
   m_ObjectHideFlags: 0

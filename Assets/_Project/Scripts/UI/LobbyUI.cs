@@ -158,6 +158,10 @@ public class LobbyUI : MonoBehaviour
         input.textComponent = textComp;
         input.placeholder = phComp;
 
+        input.richText = false;
+        input.readOnly = false;
+        input.interactable = true;
+
         return input;
     }
 
