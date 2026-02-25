@@ -9,6 +9,8 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 {
     public static NetworkManager Instance { get; private set; }
 
+    [SerializeField] private NetworkObject _gameManagerPrefab;
+
     private NetworkRunner _runner;
 
     public bool IsConnected => _runner != null && _runner.IsRunning;
@@ -68,7 +70,18 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     // ── INetworkRunnerCallbacks ──────────────────────────────
 
     public void OnPlayerJoined(NetworkRunner runner, PlayerRef player)
-        => Debug.Log($"Player joined: {player}");
+    {
+        Debug.Log($"Player joined: {player}");
+
+        if (runner.IsServer)
+        {
+            if (NetworkedGameManager.Instance == null)
+            {
+                runner.Spawn(_gameManagerPrefab, Vector3.zero, Quaternion.identity);
+                Debug.Log("NetworkedGameManager spawned!");
+            }
+        }
+    }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
         => Debug.Log($"Player left: {player}");
