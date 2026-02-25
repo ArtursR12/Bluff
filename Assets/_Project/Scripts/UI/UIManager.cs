@@ -340,21 +340,37 @@ public class UIManager : MonoBehaviour
 
     private void OnBelieveClicked()
     {
-        GameState state = GameManager.Instance.GetState();
+        GameState state = NetworkedGameManager.Instance != null
+            ? NetworkedGameManager.Instance.GetLocalState()
+            : GameManager.Instance.GetState();
+
         CardPickerUI.Instance.Show(state.LastBetCards, "believe", (cardIndex) =>
         {
-            GameManager.Instance.ResolveBelieve(cardIndex);
-            RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
+            if (NetworkedGameManager.Instance != null)
+                NetworkedGameManager.Instance.RPC_Believe(cardIndex);
+            else
+            {
+                GameManager.Instance.ResolveBelieve(cardIndex);
+                RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
+            }
         });
     }
 
     private void OnBluffClicked()
     {
-        GameState state = GameManager.Instance.GetState();
+        GameState state = NetworkedGameManager.Instance != null
+            ? NetworkedGameManager.Instance.GetLocalState()
+            : GameManager.Instance.GetState();
+
         CardPickerUI.Instance.Show(state.LastBetCards, "bluff", (cardIndex) =>
         {
-            GameManager.Instance.ResolveBluff(cardIndex);
-            RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
+            if (NetworkedGameManager.Instance != null)
+                NetworkedGameManager.Instance.RPC_Bluff(cardIndex);
+            else
+            {
+                GameManager.Instance.ResolveBluff(cardIndex);
+                RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
+            }
         });
     }
 
@@ -366,29 +382,26 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        if (RankPickerUI.Instance == null)
-        {
-            Debug.LogError("RankPickerUI.Instance is null!");
-            return;
-        }
-
-        Debug.Log("Opening rank picker...");
         RankPickerUI.Instance.Show((rank) =>
         {
-            Debug.Log($"Rank selected: {rank}");
-            GameState state = GameManager.Instance.GetState();
-            Player localPlayer = state.Players.Find(p => p.Id == _localPlayerId);
+            int[] cardIndices = _selectedCardIndices.ToArray();
 
-            List<Bluff.Core.Card> selectedCards = new List<Bluff.Core.Card>();
-            foreach (int idx in _selectedCardIndices)
-                selectedCards.Add(localPlayer.Hand[idx]);
-
-            bool success = GameManager.Instance.TryPlaceBet(selectedCards, rank);
-            if (success)
+            if (NetworkedGameManager.Instance != null)
             {
-                _selectedCardIndices.Clear();
+                NetworkedGameManager.Instance.RPC_PlaceBet(cardIndices, (int)rank);
+            }
+            else
+            {
+                GameState state = GameManager.Instance.GetState();
+                Player localPlayer = state.Players.Find(p => p.Id == _localPlayerId);
+                List<Bluff.Core.Card> selectedCards = new List<Bluff.Core.Card>();
+                foreach (int idx in cardIndices)
+                    selectedCards.Add(localPlayer.Hand[idx]);
+                GameManager.Instance.TryPlaceBet(selectedCards, rank);
                 RefreshUI(GameManager.Instance.GetState(), _localPlayerId);
             }
+
+            _selectedCardIndices.Clear();
         });
     }
 
@@ -436,13 +449,42 @@ public class UIManager : MonoBehaviour
         // Button states
         bool hasBet = state.LastBetCards.Count > 0;
         bool canChallenge = hasBet && state.LastBetPlayer.Id != localPlayerId;
+        bool hasCards = localPlayer.Hand.Count > 0;
 
         _believeButton.interactable = isMyTurn && canChallenge;
         _bluffButton.interactable = isMyTurn && canChallenge;
         _rebetButton.interactable = isMyTurn;
 
         if (!isMyTurn)
+        {
+            _believeButton.interactable = false;
+            _bluffButton.interactable = false;
+            _rebetButton.interactable = false;
             _selectionInfoText.text = $"Waiting for {state.CurrentPlayer.Name}...";
+        }
+        else if (!hasCards && hasBet)
+        {
+            // No cards but must challenge
+            _believeButton.interactable = true;
+            _bluffButton.interactable = true;
+            _rebetButton.interactable = false;
+            _selectionInfoText.text = "You have no cards - Believe or Bluff!";
+        }
+        else if (!hasBet)
+        {
+            // No active bet - must bet
+            _believeButton.interactable = false;
+            _bluffButton.interactable = false;
+            _rebetButton.interactable = true;
+            _selectionInfoText.text = "Select 1-4 cards to bet";
+        }
+        else
+        {
+            // Has cards and active bet - all options
+            _believeButton.interactable = canChallenge;
+            _bluffButton.interactable = canChallenge;
+            _rebetButton.interactable = true;
+        }
     }
 
     public void ShowGameOver(string loserName)

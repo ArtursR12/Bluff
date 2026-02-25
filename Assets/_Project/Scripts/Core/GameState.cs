@@ -55,9 +55,12 @@ namespace Bluff.Core
             LastBetCards.Clear();
         }
 
-        public void NextTurn()
+        public void NextTurn(bool challengerWon = false, int challengerIndex = 0)
         {
-            CurrentPlayerIndex = (CurrentPlayerIndex + 1) % Players.Count;
+            if (challengerWon)
+                CurrentPlayerIndex = challengerIndex;
+            else
+                CurrentPlayerIndex = (CurrentPlayerIndex + 1) % Players.Count;
         }
 
         public void CheckLoser()

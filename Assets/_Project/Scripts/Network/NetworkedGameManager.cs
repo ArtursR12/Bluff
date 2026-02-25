@@ -315,7 +315,7 @@ public class NetworkedGameManager : NetworkBehaviour
         }
 
         _localState.CheckLoser();
-        _localState.NextTurn();
+        _localState.NextTurn(correct, playerIndex);
 
         PileCount = _localState.Pile.Count;
         DiscardCount = _localState.Discard.Count;
@@ -381,29 +381,29 @@ public class NetworkedGameManager : NetworkBehaviour
         }
         else
         {
-            _localState.ResolveDiscard();
-            Debug.Log("Bluff wrong - pile to discard!");
+            _localState.GivePileToPlayer(_localState.Players[playerIndex]);
+            Debug.Log($"Bluff wrong - {_localState.Players[playerIndex].Name} takes pile!");
         }
 
         _localState.CheckLoser();
-        _localState.NextTurn();
+        _localState.NextTurn(true, playerIndex);
 
         PileCount = _localState.Pile.Count;
         DiscardCount = _localState.Discard.Count;
         CurrentPlayerIndex = _localState.CurrentPlayerIndex;
 
         RPC_BluffResolved((int)revealedCard.Suit, (int)revealedCard.Rank,
-            caughtLying, betPlayerIdx,
+            caughtLying, betPlayerIdx, playerIndex,
             _localState.Phase == GamePhase.GameOver,
             _localState.Loser != null ? int.Parse(_localState.Loser.Id) : -1);
     }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
     private void RPC_BluffResolved(int suitInt, int rankInt,
-        bool caughtLying, int betPlayerIndex, bool gameOver, int loserIndex)
+        bool caughtLying, int betPlayerIndex, int doubterIndex, bool gameOver, int loserIndex)
     {
         Debug.Log($"Bluff: card was {(Rank)rankInt} of {(Suit)suitInt}");
-        Debug.Log(caughtLying ? "Liar caught!" : "Bluff wrong - discard!");
+        Debug.Log(caughtLying ? "Liar caught!" : "Bluff wrong - doubter takes pile!");
 
         if (!Object.HasStateAuthority)
         {
@@ -414,8 +414,8 @@ public class NetworkedGameManager : NetworkBehaviour
             }
             else
             {
-                _localState.Pile.Clear();
-                _localState.LastBetCards.Clear();
+                if (_localState.Players.Count > doubterIndex)
+                    _localState.GivePileToPlayer(_localState.Players[doubterIndex]);
             }
             _localState.ForceSetCurrentPlayer(CurrentPlayerIndex);
         }
