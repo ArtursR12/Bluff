@@ -45,7 +45,7 @@ public class CardView : MonoBehaviour
             labelRect.offsetMin = Vector2.zero;
             labelRect.offsetMax = Vector2.zero;
             _label = labelGo.AddComponent<TextMeshProUGUI>();
-            _label.fontSize = 11;
+            _label.fontSize = 14;
             _label.alignment = TextAlignmentOptions.Center;
         }
 

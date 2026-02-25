@@ -186,9 +186,9 @@ public class UIManager : MonoBehaviour
         _handContainer = new GameObject("HandContainer");
         _handContainer.transform.SetParent(_bottomPanel.transform, false);
         RectTransform handRect = _handContainer.AddComponent<RectTransform>();
-        handRect.anchorMin = new Vector2(0, 0.45f);
-        handRect.anchorMax = Vector2.one;
-        handRect.offsetMin = new Vector2(5, 0);
+        handRect.anchorMin = new Vector2(0, 0.35f);
+        handRect.anchorMax = new Vector2(1, 1f);
+        handRect.offsetMin = new Vector2(5, 5);
         handRect.offsetMax = new Vector2(-5, -5);
 
         // Selection info text
@@ -224,29 +224,55 @@ public class UIManager : MonoBehaviour
 
     private void BuildHandCards(List<Card> hand)
     {
-        // Clear existing cards
         foreach (Transform child in _handContainer.transform)
             Destroy(child.gameObject);
         _handCardViews.Clear();
 
         if (hand.Count == 0) return;
 
-        float cardWidth = 0.12f;
-        float spacing = Mathf.Min(0.13f, 0.95f / hand.Count);
+        RectTransform containerRect = _handContainer.GetComponent<RectTransform>();
+        float containerWidth = 390f;
+        float containerHeight = 160f;
 
-        for (int i = 0; i < hand.Count; i++)
+        float cardWidth = 48f;
+        float cardHeight = 70f;
+
+        int count = hand.Count;
+
+        // How much each card overlaps
+        float totalWidth = containerWidth * 0.9f;
+        float spacing = Mathf.Min(cardWidth + 4f, totalWidth / count);
+
+        float startX = -(spacing * (count - 1)) / 2f;
+
+        for (int i = 0; i < count; i++)
         {
             int index = i;
-            float x = 0.02f + i * spacing;
 
             GameObject cardGo = new GameObject($"Card_{i}");
             cardGo.transform.SetParent(_handContainer.transform, false);
 
             RectTransform rect = cardGo.AddComponent<RectTransform>();
-            rect.anchorMin = new Vector2(x, 0.05f);
-            rect.anchorMax = new Vector2(x + cardWidth, 0.95f);
-            rect.offsetMin = new Vector2(2, 2);
-            rect.offsetMax = new Vector2(-2, -2);
+            rect.sizeDelta = new Vector2(cardWidth, cardHeight);
+            rect.anchorMin = new Vector2(0.5f, 0f);
+            rect.anchorMax = new Vector2(0.5f, 0f);
+            rect.pivot = new Vector2(0.5f, 0f);
+
+            // Fan arc - cards curve slightly
+            float t = count > 1 ? (float)i / (count - 1) : 0.5f;
+            float xPos = startX + i * spacing;
+
+            // Arc effect
+            float arcHeight = count > 4 ? 15f : 5f;
+            float normalizedT = (t - 0.5f) * 2f;
+            float yPos = -arcHeight * (normalizedT * normalizedT) + 10f;
+
+            // Slight rotation for fan effect
+            float maxRotation = Mathf.Min(25f, count * 1.2f);
+            float rotation = Mathf.Lerp(-maxRotation, maxRotation, t);
+
+            rect.anchoredPosition = new Vector2(xPos, yPos);
+            rect.localRotation = Quaternion.Euler(0, 0, -rotation);
 
             Image img = cardGo.AddComponent<Image>();
             img.color = Color.white;
@@ -261,19 +287,33 @@ public class UIManager : MonoBehaviour
 
     private void OnHandCardClicked(int index)
     {
-        GameState state = GameManager.Instance.GetState();
+        GameState state = NetworkedGameManager.Instance != null
+            ? NetworkedGameManager.Instance.GetLocalState()
+            : GameManager.Instance.GetState();
+
+        if (state == null || state.Players.Count == 0) return;
+
+        Player localPlayer = state.Players.Find(p => p.Id == _localPlayerId);
+        if (localPlayer == null) return;
+        if (index >= localPlayer.Hand.Count) return;
         if (state.CurrentPlayer.Id != _localPlayerId) return;
 
         if (_selectedCardIndices.Contains(index))
         {
             _selectedCardIndices.Remove(index);
             _handCardViews[index].SetSelected(false);
+            // Move card back down
+            RectTransform rect = _handCardViews[index].GetComponent<RectTransform>();
+            rect.anchoredPosition -= new Vector2(0, 20f);
         }
         else
         {
             if (_selectedCardIndices.Count >= 4) return;
             _selectedCardIndices.Add(index);
             _handCardViews[index].SetSelected(true);
+            // Pop card up
+            RectTransform rect = _handCardViews[index].GetComponent<RectTransform>();
+            rect.anchoredPosition += new Vector2(0, 20f);
         }
 
         UpdateSelectionInfo();

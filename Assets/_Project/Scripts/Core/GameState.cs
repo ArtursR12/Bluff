@@ -19,7 +19,7 @@ namespace Bluff.Core
 
         public List<Card> LastBetCards { get; private set; } = new List<Card>();
         public Rank LastDeclaredRank { get; private set; }
-        public int LastBetPlayerIndex { get; private set; }
+        public int LastBetPlayerIndex { get; set; }
 
         public Player CurrentPlayer => Players[CurrentPlayerIndex];
         public Player LastBetPlayer => Players[LastBetPlayerIndex];
@@ -83,6 +83,12 @@ namespace Bluff.Core
         public void ForceSetCurrentPlayer(int index)
         {
             CurrentPlayerIndex = index;
+        }
+
+        public void ClearAllHands()
+        {
+            foreach (Player p in Players)
+                p.Hand.Clear();
         }
     }
 }

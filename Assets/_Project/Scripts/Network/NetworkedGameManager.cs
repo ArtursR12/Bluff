@@ -1,13 +1,15 @@
-using UnityEngine;
-using Fusion;
 using Bluff.Core;
+using Fusion;
+using NUnit.Framework;
+using NUnit.Framework.Internal;
 using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
 
 public class NetworkedGameManager : NetworkBehaviour
 {
     public static NetworkedGameManager Instance { get; private set; }
 
-    // Networked properties - automatically synced across all players
     [Networked] public int CurrentPlayerIndex { get; set; }
     [Networked] public int PileCount { get; set; }
     [Networked] public int DiscardCount { get; set; }
@@ -17,11 +19,10 @@ public class NetworkedGameManager : NetworkBehaviour
     [Networked] public int LastBetPlayerIndex { get; set; }
     [Networked] public int LastBetCount { get; set; }
 
-    // Local game state (logic lives here)
     private GameState _localState = new GameState();
     private Deck _deck = new Deck();
+    private int _localPlayerIndex = -1;
 
-    // Player registry
     private Dictionary<PlayerRef, int> _playerIndexMap = new();
     private List<string> _playerNames = new();
 
@@ -36,16 +37,14 @@ public class NetworkedGameManager : NetworkBehaviour
             Debug.Log("NetworkedGameManager spawned - I am client!");
     }
 
+    // ── PLAYER REGISTRATION ──────────────────────────────────
+
     public void LocalPlayerJoined(PlayerRef player, string playerName)
     {
         if (Object.HasStateAuthority)
-        {
             RegisterPlayer(player, playerName);
-        }
         else
-        {
             RPC_RegisterPlayer(playerName);
-        }
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -54,7 +53,15 @@ public class NetworkedGameManager : NetworkBehaviour
         RegisterPlayer(info.Source, playerName);
     }
 
-    // ── PLAYER REGISTRATION ──────────────────────────────────
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    private void RPC_AssignPlayerIndex(int assignedIndex, PlayerRef targetPlayer)
+    {
+        if (Runner != null && Runner.LocalPlayer == targetPlayer)
+        {
+            _localPlayerIndex = assignedIndex;
+            Debug.Log($"My player index is: {_localPlayerIndex}");
+        }
+    }
 
     public void RegisterPlayer(PlayerRef player, string name)
     {
@@ -66,8 +73,8 @@ public class NetworkedGameManager : NetworkBehaviour
 
         Debug.Log($"Registered player {name} as index {index}");
 
-        // Auto start when 2+ players registered (for testing)
-        // In production, host manually starts
+        RPC_AssignPlayerIndex(index, player);
+
         if (_playerNames.Count >= 2)
             StartGame();
     }
@@ -78,8 +85,11 @@ public class NetworkedGameManager : NetworkBehaviour
     {
         if (!Object.HasStateAuthority) return;
 
-        _deck.Initialize();
+        bool shortDeck = _playerNames.Count <= 3;
+        _deck.Initialize(shortDeck);
         _deck.Shuffle();
+
+        Debug.Log($"Starting with {(shortDeck ? "36" : "52")} card deck for {_playerNames.Count} players");
 
         List<Player> players = new List<Player>();
         for (int i = 0; i < _playerNames.Count; i++)
@@ -103,18 +113,105 @@ public class NetworkedGameManager : NetworkBehaviour
         SendInitialStateToClients();
     }
 
-    // ── RPCS ─────────────────────────────────────────────────
+    private void SendInitialStateToClients()
+    {
+        string[] names = new string[_localState.Players.Count];
+        int[] cardCounts = new int[_localState.Players.Count];
+
+        for (int i = 0; i < _localState.Players.Count; i++)
+        {
+            names[i] = _localState.Players[i].Name;
+            cardCounts[i] = _localState.Players[i].CardCount;
+        }
+
+        for (int p = 0; p < _localState.Players.Count; p++)
+        {
+            Debug.Log($"Player {p} ({_localState.Players[p].Name}) first card: " +
+            $"{_localState.Players[p].Hand[0].Rank} of {_localState.Players[p].Hand[0].Suit}");
+
+            int[] suits = new int[cardCounts[p]];
+            int[] ranks = new int[cardCounts[p]];
+
+            for (int j = 0; j < cardCounts[p]; j++)
+            {
+                suits[j] = (int)_localState.Players[p].Hand[j].Suit;
+                ranks[j] = (int)_localState.Players[p].Hand[j].Rank;
+            }
+
+            RPC_ReceiveInitialState(suits, ranks, names, cardCounts,
+                _localState.CurrentPlayerIndex, p);
+        }
+    }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    private void RPC_GameStarted(int startingPlayerIndex)
+    private void RPC_ReceiveInitialState(int[] suits, int[] ranks,
+    string[] playerNames, int[] cardCounts,
+    int currentPlayerIndex, int receiverPlayerIndex)
     {
-        Debug.Log($"RPC_GameStarted received! Starting player: {startingPlayerIndex}");
+        StartCoroutine(ApplyInitialState(suits, ranks, playerNames,
+            cardCounts, currentPlayerIndex, receiverPlayerIndex));
+    }
 
-        // Hide lobby, show game UI
+    private System.Collections.IEnumerator ApplyInitialState(int[] suits, int[] ranks,
+        string[] playerNames, int[] cardCounts,
+        int currentPlayerIndex, int receiverPlayerIndex)
+    {
+        // Wait until we know our player index
+        float timeout = 5f;
+        while (_localPlayerIndex == -1 && timeout > 0)
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+
+        if (_localPlayerIndex == -1)
+        {
+            // Last resort - try to get from map
+            if (_playerIndexMap.TryGetValue(Runner.LocalPlayer, out int idx))
+                _localPlayerIndex = idx;
+            else
+            {
+                Debug.LogError("Could not determine local player index!");
+                yield break;
+            }
+        }
+
+        // Only process packet meant for us
+        if (_localPlayerIndex != receiverPlayerIndex) yield break;
+
+        List<Player> players = new List<Player>();
+        for (int i = 0; i < playerNames.Length; i++)
+            players.Add(new Player(i.ToString(), playerNames[i]));
+
+        _localState = new GameState();
+        _localState.StartGame(players);
+        _localState.ClearAllHands();
+        _localState.ForceSetCurrentPlayer(currentPlayerIndex);
+
+        Player localPlayer = _localState.Players[receiverPlayerIndex];
+        for (int i = 0; i < suits.Length; i++)
+            localPlayer.AddCard(new Card((Suit)suits[i], (Rank)ranks[i]));
+
+        Debug.Log($"Local player {receiverPlayerIndex} has {localPlayer.Hand.Count} real cards");
+        Debug.Log($"First card: {localPlayer.Hand[0].Rank} of {localPlayer.Hand[0].Suit}");
+
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (i != receiverPlayerIndex)
+            {
+                for (int j = 0; j < cardCounts[i]; j++)
+                    players[i].AddCard(new Card(Suit.Spades, Rank.Ace));
+            }
+        }
+
         LobbyUI.Instance?.Hide();
         UIManager.Instance?.ShowGameUI();
-        UIManager.Instance?.RefreshUI(_localState, GetLocalPlayerId());
+        UIManager.Instance?.RefreshUI(_localState, _localPlayerIndex.ToString());
+
+        Debug.Log($"Game UI shown for player {_localPlayerIndex} with {suits.Length} cards!");
     }
+
+    // ── RPCS ─────────────────────────────────────────────────
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
     public void RPC_PlaceBet(int[] cardIndices, int declaredRankInt,
@@ -169,14 +266,26 @@ public class NetworkedGameManager : NetworkBehaviour
         Debug.Log($"RPC_BetPlaced: Player {betPlayerIndex} bet " +
             $"{cardIndices.Length}x {(Rank)declaredRankInt}");
 
-        // Update local state for non-host players
         if (!Object.HasStateAuthority)
         {
-            // Clients need to remove cards from that player's hand
-            // and add to pile - simplified sync
+            if (_localState.Players.Count > betPlayerIndex)
+            {
+                Player betPlayer = _localState.Players[betPlayerIndex];
+                int removeCount = Mathf.Min(cardIndices.Length, betPlayer.Hand.Count);
+                List<Card> toRemove = new List<Card>();
+                for (int i = 0; i < removeCount; i++)
+                    toRemove.Add(betPlayer.Hand[0]);
+                betPlayer.RemoveCards(toRemove);
+
+                for (int i = 0; i < cardIndices.Length; i++)
+                    _localState.Pile.Add(new Card(Suit.Spades, Rank.Ace));
+
+                _localState.ForceSetCurrentPlayer(nextPlayerIndex);
+                _localState.LastBetPlayerIndex = betPlayerIndex;
+            }
         }
 
-        UIManager.Instance?.RefreshUI(_localState, GetLocalPlayerId());
+        UIManager.Instance?.RefreshUI(_localState, _localPlayerIndex.ToString());
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -192,9 +301,7 @@ public class NetworkedGameManager : NetworkBehaviour
 
         Player challenger = _localState.Players[playerIndex];
         bool correct = GameRules.ResolveBelieve(_localState, cardIndex);
-
         Card revealedCard = _localState.LastBetCards[cardIndex];
-        bool pileToDiscard = correct;
 
         if (correct)
         {
@@ -214,18 +321,33 @@ public class NetworkedGameManager : NetworkBehaviour
         DiscardCount = _localState.Discard.Count;
         CurrentPlayerIndex = _localState.CurrentPlayerIndex;
 
-        RPC_BelieveResolved(cardIndex, (int)revealedCard.Suit,
-            (int)revealedCard.Rank, pileToDiscard, playerIndex,
+        RPC_BelieveResolved((int)revealedCard.Suit, (int)revealedCard.Rank,
+            correct, playerIndex,
             _localState.Phase == GamePhase.GameOver,
             _localState.Loser != null ? int.Parse(_localState.Loser.Id) : -1);
     }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    private void RPC_BelieveResolved(int cardIndex, int suitInt, int rankInt,
+    private void RPC_BelieveResolved(int suitInt, int rankInt,
         bool pileToDiscard, int challengerIndex, bool gameOver, int loserIndex)
     {
-        Debug.Log($"RPC_BelieveResolved: card was {(Rank)rankInt} of {(Suit)suitInt}");
-        Debug.Log(pileToDiscard ? "Pile goes to discard!" : "Challenger takes pile!");
+        Debug.Log($"Believe: card was {(Rank)rankInt} of {(Suit)suitInt}");
+        Debug.Log(pileToDiscard ? "Pile to discard!" : "Challenger takes pile!");
+
+        if (!Object.HasStateAuthority)
+        {
+            if (pileToDiscard)
+            {
+                _localState.Pile.Clear();
+                _localState.LastBetCards.Clear();
+            }
+            else
+            {
+                if (_localState.Players.Count > challengerIndex)
+                    _localState.GivePileToPlayer(_localState.Players[challengerIndex]);
+            }
+            _localState.ForceSetCurrentPlayer(CurrentPlayerIndex);
+        }
 
         if (gameOver && loserIndex >= 0)
         {
@@ -234,7 +356,7 @@ public class NetworkedGameManager : NetworkBehaviour
             UIManager.Instance?.ShowGameOver(loserName);
         }
 
-        UIManager.Instance?.RefreshUI(_localState, GetLocalPlayerId());
+        UIManager.Instance?.RefreshUI(_localState, _localPlayerIndex.ToString());
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -248,9 +370,7 @@ public class NetworkedGameManager : NetworkBehaviour
         int playerIndex = _playerIndexMap[sender];
         if (_localState.CurrentPlayerIndex != playerIndex) return;
 
-        Player doubter = _localState.Players[playerIndex];
         bool caughtLying = GameRules.ResolveBluff(_localState, cardIndex);
-
         Card revealedCard = _localState.LastBetCards[cardIndex];
         int betPlayerIdx = _localState.LastBetPlayerIndex;
 
@@ -272,18 +392,33 @@ public class NetworkedGameManager : NetworkBehaviour
         DiscardCount = _localState.Discard.Count;
         CurrentPlayerIndex = _localState.CurrentPlayerIndex;
 
-        RPC_BluffResolved(cardIndex, (int)revealedCard.Suit,
-            (int)revealedCard.Rank, caughtLying, betPlayerIdx,
+        RPC_BluffResolved((int)revealedCard.Suit, (int)revealedCard.Rank,
+            caughtLying, betPlayerIdx,
             _localState.Phase == GamePhase.GameOver,
             _localState.Loser != null ? int.Parse(_localState.Loser.Id) : -1);
     }
 
     [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    private void RPC_BluffResolved(int cardIndex, int suitInt, int rankInt,
+    private void RPC_BluffResolved(int suitInt, int rankInt,
         bool caughtLying, int betPlayerIndex, bool gameOver, int loserIndex)
     {
-        Debug.Log($"RPC_BluffResolved: card was {(Rank)rankInt} of {(Suit)suitInt}");
-        Debug.Log(caughtLying ? "Liar caught!" : "Bluff call wrong - discard!");
+        Debug.Log($"Bluff: card was {(Rank)rankInt} of {(Suit)suitInt}");
+        Debug.Log(caughtLying ? "Liar caught!" : "Bluff wrong - discard!");
+
+        if (!Object.HasStateAuthority)
+        {
+            if (caughtLying)
+            {
+                if (_localState.Players.Count > betPlayerIndex)
+                    _localState.GivePileToPlayer(_localState.Players[betPlayerIndex]);
+            }
+            else
+            {
+                _localState.Pile.Clear();
+                _localState.LastBetCards.Clear();
+            }
+            _localState.ForceSetCurrentPlayer(CurrentPlayerIndex);
+        }
 
         if (gameOver && loserIndex >= 0)
         {
@@ -292,90 +427,19 @@ public class NetworkedGameManager : NetworkBehaviour
             UIManager.Instance?.ShowGameOver(loserName);
         }
 
-        UIManager.Instance?.RefreshUI(_localState, GetLocalPlayerId());
+        UIManager.Instance?.RefreshUI(_localState, _localPlayerIndex.ToString());
     }
 
     // ── HELPERS ──────────────────────────────────────────────
 
     private string GetLocalPlayerId()
     {
+        if (_localPlayerIndex >= 0)
+            return _localPlayerIndex.ToString();
         if (Runner == null) return "0";
         if (_playerIndexMap.TryGetValue(Runner.LocalPlayer, out int index))
             return index.ToString();
         return "0";
-    }
-
-    private void SendInitialStateToClients()
-    {
-        foreach (var kvp in _playerIndexMap)
-        {
-            PlayerRef player = kvp.Key;
-            int playerIndex = kvp.Value;
-            Player gamePlayer = _localState.Players[playerIndex];
-
-            // Build card data arrays
-            int[] suits = new int[gamePlayer.Hand.Count];
-            int[] ranks = new int[gamePlayer.Hand.Count];
-            string[] names = new string[_localState.Players.Count];
-
-            for (int i = 0; i < gamePlayer.Hand.Count; i++)
-            {
-                suits[i] = (int)gamePlayer.Hand[i].Suit;
-                ranks[i] = (int)gamePlayer.Hand[i].Rank;
-            }
-
-            for (int i = 0; i < _localState.Players.Count; i++)
-                names[i] = _localState.Players[i].Name;
-
-            int[] cardCounts = new int[_localState.Players.Count];
-            for (int i = 0; i < _localState.Players.Count; i++)
-                cardCounts[i] = _localState.Players[i].CardCount;
-
-            RPC_ReceiveInitialState(suits, ranks, names, cardCounts,
-                _localState.CurrentPlayerIndex, playerIndex);
-        }
-    }
-
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
-    private void RPC_ReceiveInitialState(int[] suits, int[] ranks,
-        string[] playerNames, int[] cardCounts,
-        int currentPlayerIndex, int receiverPlayerIndex)
-    {
-        Debug.Log($"RPC_ReceiveInitialState received! I am player {receiverPlayerIndex}");
-
-        string localId = GetLocalPlayerId();
-
-        // Only process if this matches our player index
-        if (localId != receiverPlayerIndex.ToString()) return;
-
-        // Rebuild local state for this client
-        List<Player> players = new List<Player>();
-        for (int i = 0; i < playerNames.Length; i++)
-            players.Add(new Player(i.ToString(), playerNames[i]));
-
-        _localState.StartGame(players);
-        _localState.ForceSetCurrentPlayer(currentPlayerIndex);
-
-        // Give this player their hand
-        Player localPlayer = _localState.Players[receiverPlayerIndex];
-        for (int i = 0; i < suits.Length; i++)
-            localPlayer.AddCard(new Card((Suit)suits[i], (Rank)ranks[i]));
-
-        // Set card counts for other players (they don't see actual cards)
-        for (int i = 0; i < players.Count; i++)
-        {
-            if (i != receiverPlayerIndex)
-            {
-                for (int j = 0; j < cardCounts[i]; j++)
-                    players[i].AddCard(new Card(Suit.Spades, Rank.Ace));
-            }
-        }
-
-        LobbyUI.Instance?.Hide();
-        UIManager.Instance?.ShowGameUI();
-        UIManager.Instance?.RefreshUI(_localState, localId);
-
-        Debug.Log($"Game UI shown for player {localId}!");
     }
 
     public GameState GetLocalState() => _localState;

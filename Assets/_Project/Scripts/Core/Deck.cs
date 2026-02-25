@@ -8,12 +8,21 @@ namespace Bluff.Core
 
         public int Count => _cards.Count;
 
-        public void Initialize()
+        public void Initialize(bool shortDeck = false)
         {
             _cards.Clear();
+
             foreach (Suit suit in System.Enum.GetValues(typeof(Suit)))
+            {
                 foreach (Rank rank in System.Enum.GetValues(typeof(Rank)))
+                {
+                    // Short deck: only 6 and above (6,7,8,9,10,J,Q,K,A = 9 ranks x 4 suits = 36 cards)
+                    if (shortDeck && (int)rank < (int)Rank.Six)
+                        continue;
+
                     _cards.Add(new Card(suit, rank));
+                }
+            }
         }
 
         public void Shuffle()
