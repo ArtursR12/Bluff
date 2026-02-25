@@ -79,5 +79,10 @@ namespace Bluff.Core
                 Phase = GamePhase.GameOver;
             }
         }
+
+        public void ForceSetCurrentPlayer(int index)
+        {
+            CurrentPlayerIndex = index;
+        }
     }
 }

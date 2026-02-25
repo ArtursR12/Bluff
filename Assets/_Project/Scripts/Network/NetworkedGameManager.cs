@@ -87,7 +87,6 @@ public class NetworkedGameManager : NetworkBehaviour
 
         _localState.StartGame(players);
 
-        // Deal cards
         int index = 0;
         while (_deck.Count > 0)
         {
@@ -101,8 +100,7 @@ public class NetworkedGameManager : NetworkBehaviour
 
         Debug.Log($"Game started! {_localState.CurrentPlayer.Name} goes first!");
 
-        // Notify all clients
-        RPC_GameStarted(_localState.CurrentPlayerIndex);
+        SendInitialStateToClients();
     }
 
     // ── RPCS ─────────────────────────────────────────────────
@@ -111,7 +109,11 @@ public class NetworkedGameManager : NetworkBehaviour
     private void RPC_GameStarted(int startingPlayerIndex)
     {
         Debug.Log($"RPC_GameStarted received! Starting player: {startingPlayerIndex}");
-        // UIManager will be refreshed here
+
+        // Hide lobby, show game UI
+        LobbyUI.Instance?.Hide();
+        UIManager.Instance?.ShowGameUI();
+        UIManager.Instance?.RefreshUI(_localState, GetLocalPlayerId());
     }
 
     [Rpc(RpcSources.All, RpcTargets.StateAuthority)]
@@ -301,6 +303,79 @@ public class NetworkedGameManager : NetworkBehaviour
         if (_playerIndexMap.TryGetValue(Runner.LocalPlayer, out int index))
             return index.ToString();
         return "0";
+    }
+
+    private void SendInitialStateToClients()
+    {
+        foreach (var kvp in _playerIndexMap)
+        {
+            PlayerRef player = kvp.Key;
+            int playerIndex = kvp.Value;
+            Player gamePlayer = _localState.Players[playerIndex];
+
+            // Build card data arrays
+            int[] suits = new int[gamePlayer.Hand.Count];
+            int[] ranks = new int[gamePlayer.Hand.Count];
+            string[] names = new string[_localState.Players.Count];
+
+            for (int i = 0; i < gamePlayer.Hand.Count; i++)
+            {
+                suits[i] = (int)gamePlayer.Hand[i].Suit;
+                ranks[i] = (int)gamePlayer.Hand[i].Rank;
+            }
+
+            for (int i = 0; i < _localState.Players.Count; i++)
+                names[i] = _localState.Players[i].Name;
+
+            int[] cardCounts = new int[_localState.Players.Count];
+            for (int i = 0; i < _localState.Players.Count; i++)
+                cardCounts[i] = _localState.Players[i].CardCount;
+
+            RPC_ReceiveInitialState(suits, ranks, names, cardCounts,
+                _localState.CurrentPlayerIndex, playerIndex);
+        }
+    }
+
+    [Rpc(RpcSources.StateAuthority, RpcTargets.All)]
+    private void RPC_ReceiveInitialState(int[] suits, int[] ranks,
+        string[] playerNames, int[] cardCounts,
+        int currentPlayerIndex, int receiverPlayerIndex)
+    {
+        Debug.Log($"RPC_ReceiveInitialState received! I am player {receiverPlayerIndex}");
+
+        string localId = GetLocalPlayerId();
+
+        // Only process if this matches our player index
+        if (localId != receiverPlayerIndex.ToString()) return;
+
+        // Rebuild local state for this client
+        List<Player> players = new List<Player>();
+        for (int i = 0; i < playerNames.Length; i++)
+            players.Add(new Player(i.ToString(), playerNames[i]));
+
+        _localState.StartGame(players);
+        _localState.ForceSetCurrentPlayer(currentPlayerIndex);
+
+        // Give this player their hand
+        Player localPlayer = _localState.Players[receiverPlayerIndex];
+        for (int i = 0; i < suits.Length; i++)
+            localPlayer.AddCard(new Card((Suit)suits[i], (Rank)ranks[i]));
+
+        // Set card counts for other players (they don't see actual cards)
+        for (int i = 0; i < players.Count; i++)
+        {
+            if (i != receiverPlayerIndex)
+            {
+                for (int j = 0; j < cardCounts[i]; j++)
+                    players[i].AddCard(new Card(Suit.Spades, Rank.Ace));
+            }
+        }
+
+        LobbyUI.Instance?.Hide();
+        UIManager.Instance?.ShowGameUI();
+        UIManager.Instance?.RefreshUI(_localState, localId);
+
+        Debug.Log($"Game UI shown for player {localId}!");
     }
 
     public GameState GetLocalState() => _localState;
