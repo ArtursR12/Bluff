@@ -134,6 +134,17 @@ public class UIManager : MonoBehaviour
         BuildTopPanel();
         BuildMiddlePanel();
         BuildBottomPanel();
+
+        _topPanel.SetActive(false);
+        _middlePanel.SetActive(false);
+        _bottomPanel.SetActive(false);
+    }
+
+    public void ShowGameUI()
+    {
+        _topPanel.SetActive(true);
+        _middlePanel.SetActive(true);
+        _bottomPanel.SetActive(true);
     }
 
     private void BuildTopPanel()
