@@ -15,6 +15,7 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
     public bool IsConnected => _runner != null && _runner.IsRunning;
     public bool IsHost => _runner != null && _runner.IsServer;
+    private string _localPlayerName = "";
 
     void Awake()
     {
@@ -25,12 +26,14 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
     public async Task CreateRoom(string roomCode, string playerName)
     {
+        _localPlayerName = playerName;
         Debug.Log($"Creating room: {roomCode}");
         await StartFusion(GameMode.Host, roomCode);
     }
 
     public async Task JoinRoom(string roomCode, string playerName)
     {
+        _localPlayerName = playerName;
         Debug.Log($"Joining room: {roomCode}");
         await StartFusion(GameMode.Client, roomCode);
     }
@@ -81,6 +84,22 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
                 Debug.Log("NetworkedGameManager spawned!");
             }
         }
+
+        // Register local player when they join
+        if (player == runner.LocalPlayer)
+        {
+            StartCoroutine(RegisterWhenReady(player));
+        }
+    }
+
+    private System.Collections.IEnumerator RegisterWhenReady(PlayerRef player)
+    {
+        // Wait until NetworkedGameManager is spawned and ready
+        while (NetworkedGameManager.Instance == null)
+            yield return null;
+
+        Debug.Log($"Registering player: {_localPlayerName}");
+        NetworkedGameManager.Instance.LocalPlayerJoined(player, _localPlayerName);
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)

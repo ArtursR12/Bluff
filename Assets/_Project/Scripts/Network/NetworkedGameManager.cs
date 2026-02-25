@@ -36,6 +36,24 @@ public class NetworkedGameManager : NetworkBehaviour
             Debug.Log("NetworkedGameManager spawned - I am client!");
     }
 
+    public void LocalPlayerJoined(PlayerRef player, string playerName)
+    {
+        if (Object.HasStateAuthority)
+        {
+            RegisterPlayer(player, playerName);
+        }
+        else
+        {
+            RPC_RegisterPlayer(playerName);
+        }
+    }
+
+    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority)]
+    private void RPC_RegisterPlayer(string playerName, RpcInfo info = default)
+    {
+        RegisterPlayer(info.Source, playerName);
+    }
+
     // ── PLAYER REGISTRATION ──────────────────────────────────
 
     public void RegisterPlayer(PlayerRef player, string name)
