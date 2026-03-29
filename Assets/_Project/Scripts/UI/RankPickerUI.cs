@@ -9,6 +9,8 @@ public class RankPickerUI : MonoBehaviour
 {
     private GameObject _panel;
     private Action<Rank> _onRankSelected;
+    private readonly Dictionary<Rank, GameObject> _rankFrames = new Dictionary<Rank, GameObject>();
+    private TextMeshProUGUI _titleText;
 
     private readonly List<Rank> _ranks = new List<Rank>
     {
@@ -46,8 +48,13 @@ public class RankPickerUI : MonoBehaviour
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
 
+        Canvas panelCanvas = _panel.AddComponent<Canvas>();
+        panelCanvas.overrideSorting = true;
+        panelCanvas.sortingOrder = 100;
+        _panel.AddComponent<GraphicRaycaster>();
+
         Image bg = _panel.AddComponent<Image>();
-        bg.color = new Color(0, 0, 0, 0.85f);
+        bg.color = new Color(0.02f, 0.04f, 0.09f, 0.95f);
 
         // Title
         GameObject title = new GameObject("Title");
@@ -57,11 +64,12 @@ public class RankPickerUI : MonoBehaviour
         titleRect.anchorMax = new Vector2(0.9f, 0.88f);
         titleRect.offsetMin = Vector2.zero;
         titleRect.offsetMax = Vector2.zero;
-        TextMeshProUGUI titleText = title.AddComponent<TextMeshProUGUI>();
-        titleText.text = "Declare a rank";
-        titleText.fontSize = 24;
-        titleText.alignment = TextAlignmentOptions.Center;
-        titleText.color = Color.white;
+        _titleText = title.AddComponent<TextMeshProUGUI>();
+        _titleText.text = "Declare a Rank";
+        _titleText.fontSize = 22;
+        _titleText.alignment = TextAlignmentOptions.Center;
+        _titleText.color = new Color(0.83f, 0.685f, 0.215f, 1f);
+        _titleText.fontStyle = FontStyles.Bold;
 
         // Rank buttons grid
         int cols = 4;
@@ -91,17 +99,26 @@ public class RankPickerUI : MonoBehaviour
 
     private void CreateRankButton(Rank rank, Vector2 anchorMin, Vector2 anchorMax)
     {
+        // Gold border frame
+        GameObject frame = new GameObject("Frame_Rank_" + rank);
+        _rankFrames[rank] = frame;
+        frame.transform.SetParent(_panel.transform, false);
+        RectTransform frameRect = frame.AddComponent<RectTransform>();
+        frameRect.anchorMin = anchorMin;
+        frameRect.anchorMax = anchorMax;
+        frameRect.offsetMin = new Vector2(2, 2);
+        frameRect.offsetMax = new Vector2(-2, -2);
+        frame.AddComponent<Image>().color = new Color(0.83f, 0.685f, 0.215f, 1f);
+
         GameObject go = new GameObject("Rank_" + rank);
-        go.transform.SetParent(_panel.transform, false);
-
+        go.transform.SetParent(frame.transform, false);
         RectTransform rect = go.AddComponent<RectTransform>();
-        rect.anchorMin = anchorMin;
-        rect.anchorMax = anchorMax;
-        rect.offsetMin = new Vector2(3, 3);
-        rect.offsetMax = new Vector2(-3, -3);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = new Vector2(2, 2);
+        rect.offsetMax = new Vector2(-2, -2);
 
-        Image img = go.AddComponent<Image>();
-        img.color = new Color(0.25f, 0.35f, 0.55f, 1f);
+        go.AddComponent<Image>().color = new Color(0.08f, 0.135f, 0.45f, 1f);
 
         Button btn = go.AddComponent<Button>();
         btn.onClick.AddListener(() => OnRankSelected(rank));
@@ -115,25 +132,34 @@ public class RankPickerUI : MonoBehaviour
         labelRect.offsetMax = Vector2.zero;
 
         TextMeshProUGUI tmp = label.AddComponent<TextMeshProUGUI>();
-        tmp.text = rank.ToString();
-        tmp.fontSize = 16;
+        tmp.text      = RankShort(rank);
+        tmp.fontSize  = 17;
         tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = Color.white;
+        tmp.color     = Color.white;
+        tmp.fontStyle = FontStyles.Bold;
     }
 
     private void CreateCancelButton()
     {
+        // Gold border frame
+        GameObject frame = new GameObject("Frame_Cancel");
+        frame.transform.SetParent(_panel.transform, false);
+        RectTransform frameRect = frame.AddComponent<RectTransform>();
+        frameRect.anchorMin = new Vector2(0.25f, 0.1f);
+        frameRect.anchorMax = new Vector2(0.75f, 0.18f);
+        frameRect.offsetMin = new Vector2(2, 2);
+        frameRect.offsetMax = new Vector2(-2, -2);
+        frame.AddComponent<Image>().color = new Color(0.83f, 0.685f, 0.215f, 1f);
+
         GameObject go = new GameObject("CancelButton");
-        go.transform.SetParent(_panel.transform, false);
-
+        go.transform.SetParent(frame.transform, false);
         RectTransform rect = go.AddComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.25f, 0.1f);
-        rect.anchorMax = new Vector2(0.75f, 0.18f);
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = new Vector2(2, 2);
+        rect.offsetMax = new Vector2(-2, -2);
 
-        Image img = go.AddComponent<Image>();
-        img.color = new Color(0.5f, 0.1f, 0.1f, 1f);
+        go.AddComponent<Image>().color = new Color(0.45f, 0.055f, 0.055f, 1f);
 
         Button btn = go.AddComponent<Button>();
         btn.onClick.AddListener(Hide);
@@ -147,10 +173,11 @@ public class RankPickerUI : MonoBehaviour
         labelRect.offsetMax = Vector2.zero;
 
         TextMeshProUGUI tmp = label.AddComponent<TextMeshProUGUI>();
-        tmp.text = "Cancel";
-        tmp.fontSize = 18;
+        tmp.text      = "✕  Cancel";
+        tmp.fontSize  = 18;
         tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = Color.white;
+        tmp.color     = Color.white;
+        tmp.fontStyle = FontStyles.Bold;
     }
 
     private void OnRankSelected(Rank rank)
@@ -159,12 +186,40 @@ public class RankPickerUI : MonoBehaviour
         _onRankSelected?.Invoke(rank);
     }
 
-    public void Show(Action<Rank> onRankSelected)
+    public void Show(Action<Rank> onRankSelected, bool shortDeck = false, int cardCount = 0)
     {
         _onRankSelected = onRankSelected;
+
+        // Update title to show how many cards are being declared on
+        if (_titleText != null)
+            _titleText.text = cardCount > 0
+                ? $"Declare a rank for  <b>{cardCount}</b>  card{(cardCount == 1 ? "" : "s")}"
+                : "Declare a Rank";
+
+        // Grey out ranks not in the deck
+        foreach (var kvp in _rankFrames)
+        {
+            bool available = !shortDeck || (int)kvp.Key >= (int)Rank.Six;
+            var img  = kvp.Value.GetComponent<Image>();
+            var btn  = kvp.Value.GetComponentInChildren<Button>();
+            if (img != null)
+                img.color = available ? new Color(0.83f, 0.685f, 0.215f, 1f) : new Color(0.3f, 0.3f, 0.3f, 0.5f);
+            if (btn != null)
+                btn.interactable = available;
+        }
+
         _panel.SetActive(true);
         _panel.transform.SetAsLastSibling();
     }
+
+    private static string RankShort(Rank rank) => rank switch
+    {
+        Rank.Two   => "2",  Rank.Three => "3",  Rank.Four  => "4",
+        Rank.Five  => "5",  Rank.Six   => "6",  Rank.Seven => "7",
+        Rank.Eight => "8",  Rank.Nine  => "9",  Rank.Ten   => "10",
+        Rank.Jack  => "J",  Rank.Queen => "Q",  Rank.King  => "K",
+        Rank.Ace   => "A",  _          => rank.ToString()
+    };
 
     public void Hide()
     {

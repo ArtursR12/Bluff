@@ -12,9 +12,11 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     [SerializeField] private NetworkObject _gameManagerPrefab;
 
     private NetworkRunner _runner;
+    private bool _intentionalDisconnect;
 
     public bool IsConnected => _runner != null && _runner.IsRunning;
     public bool IsHost => _runner != null && _runner.IsServer;
+    public int MaxPlayers { get; private set; } = 6;
     private string _localPlayerName = "";
 
     void Awake()
@@ -22,12 +24,19 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        // Mobile optimisations — safe to call on all platforms
+        Application.targetFrameRate = 60;
+        Screen.sleepTimeout = SleepTimeout.NeverSleep;
+        // Portrait-only; comment out if landscape is ever needed
+        Screen.orientation = ScreenOrientation.Portrait;
     }
 
-    public async Task CreateRoom(string roomCode, string playerName)
+    public async Task CreateRoom(string roomCode, string playerName, int maxPlayers = 6)
     {
         _localPlayerName = playerName;
-        Debug.Log($"Creating room: {roomCode}");
+        MaxPlayers = maxPlayers;
+        Debug.Log($"Creating room: {roomCode} (max {maxPlayers})");
         await StartFusion(GameMode.Host, roomCode);
     }
 
@@ -49,20 +58,29 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
 
         var result = await _runner.StartGame(new StartGameArgs
         {
-            GameMode = mode,
-            SessionName = roomCode,
-            Scene = sceneInfo,
+            GameMode     = mode,
+            SessionName  = roomCode,
+            Scene        = sceneInfo,
             SceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>()
         });
 
         if (result.Ok)
+        {
             Debug.Log($"Fusion started! Mode: {mode}, Room: {roomCode}");
+        }
         else
+        {
+            _intentionalDisconnect = true; // don't show connection-lost overlay
             Debug.LogError($"Fusion failed: {result.ShutdownReason}");
+            // Destroy the failed runner so the next attempt starts clean
+            if (_runner != null) { Destroy(_runner); _runner = null; }
+            throw new System.Exception(result.ShutdownReason.ToString());
+        }
     }
 
     public void Disconnect()
     {
+        _intentionalDisconnect = true;
         if (_runner != null)
         {
             _runner.Shutdown();
@@ -103,10 +121,18 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
     }
 
     public void OnPlayerLeft(NetworkRunner runner, PlayerRef player)
-        => Debug.Log($"Player left: {player}");
+    {
+        Debug.Log($"Player left: {player}");
+        NetworkedGameManager.Instance?.HandlePlayerDisconnected(player);
+    }
 
     public void OnShutdown(NetworkRunner runner, ShutdownReason reason)
-        => Debug.Log($"Shutdown: {reason}");
+    {
+        Debug.Log($"Shutdown: {reason}");
+        if (!_intentionalDisconnect)
+            NetworkedGameManager.NotifyConnectionLost();
+        _intentionalDisconnect = false;
+    }
 
     public void OnConnectRequest(NetworkRunner runner,
         NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token)
@@ -116,9 +142,12 @@ public class NetworkManager : MonoBehaviour, INetworkRunnerCallbacks
         NetConnectFailedReason reason)
         => Debug.LogError($"Connect failed: {reason}");
 
-    public void OnDisconnectedFromServer(NetworkRunner runner,
-        NetDisconnectReason reason)
-        => Debug.Log($"Disconnected: {reason}");
+    public void OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
+    {
+        Debug.Log($"Disconnected from server: {reason}");
+        if (!_intentionalDisconnect)
+            NetworkedGameManager.NotifyConnectionLost();
+    }
 
     public void OnConnectedToServer(NetworkRunner runner)
         => Debug.Log("Connected to server!");

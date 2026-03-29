@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.CHANGEME.bluff">
+
+    <!-- ── Permissions ─────────────────────────────────────── -->
+    <!-- Required for Photon Fusion multiplayer -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+
+    <!-- Vibration (haptic feedback on pile shake) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:label="@string/app_name"
+        android:icon="@mipmap/app_icon"
+        android:theme="@style/UnityThemeSelector"
+        android:allowBackup="false"
+        android:hardwareAccelerated="false"
+        android:isGame="true"
+        android:banner="@drawable/app_banner">
+
+        <activity
+            android:name="com.unity3d.player.UnityPlayerGameActivity"
+            android:label="@string/app_name"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTask"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density"
+            android:hardwareAccelerated="false"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

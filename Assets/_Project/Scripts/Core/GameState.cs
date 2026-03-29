@@ -19,17 +19,31 @@ namespace Bluff.Core
 
         public List<Card> LastBetCards { get; private set; } = new List<Card>();
         public Rank LastDeclaredRank { get; private set; }
-        public int LastBetPlayerIndex { get; set; }
+        public int LastBetPlayerIndex { get; private set; }
 
-        public Player CurrentPlayer => Players[CurrentPlayerIndex];
-        public Player LastBetPlayer => Players[LastBetPlayerIndex];
+        public Player CurrentPlayer => CurrentPlayerIndex >= 0 && CurrentPlayerIndex < Players.Count ? Players[CurrentPlayerIndex] : null;
+        public Player LastBetPlayer => LastBetPlayerIndex >= 0 && LastBetPlayerIndex < Players.Count ? Players[LastBetPlayerIndex] : null;
         public Player Loser { get; private set; }
+        public bool HasActiveBet => LastBetCards.Count > 0;
+
 
         public void StartGame(List<Player> players)
         {
             Players = players;
             Phase = GamePhase.Playing;
             CurrentPlayerIndex = new System.Random().Next(players.Count);
+        }
+
+        public void ClearLastBet()
+        {
+            LastBetCards.Clear();
+        }
+
+        public void SetLastBetCards(List<Card> cards, Rank declaredRank, int betPlayerIndex)
+        {
+            LastBetCards = new List<Card>(cards);
+            LastDeclaredRank = declaredRank;
+            LastBetPlayerIndex = betPlayerIndex;
         }
 
         public void PlaceBet(Player player, List<Card> cards, Rank declaredRank)
@@ -57,10 +71,23 @@ namespace Bluff.Core
 
         public void NextTurn(bool challengerWon = false, int challengerIndex = 0)
         {
-            if (challengerWon)
-                CurrentPlayerIndex = challengerIndex;
-            else
-                CurrentPlayerIndex = (CurrentPlayerIndex + 1) % Players.Count;
+            int start = challengerWon
+                ? challengerIndex
+                : (CurrentPlayerIndex + 1) % Players.Count;
+            CurrentPlayerIndex = AdvanceToNextActivePlayer(start);
+        }
+
+        // Skip players with no cards when there's no active bet (they're already "out")
+        private int AdvanceToNextActivePlayer(int startIndex)
+        {
+            int index = startIndex;
+            for (int i = 0; i < Players.Count; i++)
+            {
+                if (Players[index].HasCards() || HasActiveBet)
+                    return index;
+                index = (index + 1) % Players.Count;
+            }
+            return startIndex;
         }
 
         public void CheckLoser()
@@ -75,7 +102,6 @@ namespace Bluff.Core
                     lastWithCards = p;
                 }
             }
-
             if (playersWithCards == 1)
             {
                 Loser = lastWithCards;

@@ -608,50 +608,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1082069226
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1082069228}
-  - component: {fileID: 1082069227}
-  m_Layer: 0
-  m_Name: CardPickerUI
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1082069227
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1082069226}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3b8eafebd184c0f419ed717b26c3df52, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CardPickerUI
---- !u!4 &1082069228
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1082069226}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.46104, y: -0.3191, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1523211740
 GameObject:
   m_ObjectHideFlags: 0
@@ -798,6 +754,66 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2000000001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2000000003}
+  - component: {fileID: 2000000002}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2000000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c61a6620efdde444e8632f4704bd85de, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::AudioManager
+  _clipCardClick: {fileID: 0}
+  _clipCardDeal: {fileID: 0}
+  _clipBetPlaced: {fileID: 0}
+  _clipBelieveCorrect: {fileID: 0}
+  _clipBelieveWrong: {fileID: 0}
+  _clipBluffCaught: {fileID: 0}
+  _clipBluffWrong: {fileID: 0}
+  _clipYourTurn: {fileID: 0}
+  _clipCountdownTick: {fileID: 0}
+  _clipTimerWarning: {fileID: 0}
+  _clipGameWin: {fileID: 0}
+  _clipGameLose: {fileID: 0}
+  _clipMenuMusic: {fileID: 0}
+  _clipGameMusic: {fileID: 0}
+  _sfxVolume: 1
+  _musicVolume: 0.35
+--- !u!4 &2000000003
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2000000001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -809,6 +825,6 @@ SceneRoots:
   - {fileID: 1078167057}
   - {fileID: 1022339476}
   - {fileID: 306885401}
-  - {fileID: 1082069228}
   - {fileID: 1996340940}
   - {fileID: 1523211742}
+  - {fileID: 2000000003}

@@ -8,7 +8,7 @@ namespace Bluff.Core
         public const int MaxPlayers = 6;
         public const int MaxBetCards = 4;
 
-        public static bool CanPlaceBet(GameState state, Player player, List<Card> cards)
+        public static bool CanPlaceBet(GameState state, Player player, List<Card> cards, Rank declaredRank)
         {
             // Must be current player's turn
             if (state.CurrentPlayer != player) return false;
@@ -19,6 +19,9 @@ namespace Bluff.Core
             // Player must actually have these cards
             foreach (Card card in cards)
                 if (!player.Hand.Contains(card)) return false;
+
+            // Re-bet must declare the same rank as the active bet
+            if (state.HasActiveBet && declaredRank != state.LastDeclaredRank) return false;
 
             return true;
         }
@@ -48,15 +51,17 @@ namespace Bluff.Core
         // Returns false if card does not match (challenger takes pile)
         public static bool ResolveBelieve(GameState state, int cardIndex)
         {
+            if (cardIndex < 0 || cardIndex >= state.LastBetCards.Count) return false;
             Card checkedCard = state.LastBetCards[cardIndex];
             return CheckCard(checkedCard, state.LastDeclaredRank);
         }
 
         // Bluff - player challenges the last bet, picks 1 card
         // Returns true if caught lying (liar takes pile)
-        // Returns false if telling truth (pile goes to discard)
+        // Returns false if telling truth (doubter takes pile)
         public static bool ResolveBluff(GameState state, int cardIndex)
         {
+            if (cardIndex < 0 || cardIndex >= state.LastBetCards.Count) return false;
             Card checkedCard = state.LastBetCards[cardIndex];
             return !CheckCard(checkedCard, state.LastDeclaredRank);
         }

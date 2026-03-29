@@ -2,6 +2,14 @@
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
 #
+
+# Claude Code local files
+.claude/
+.claude-studio/
+
+# Session logs (keep PUBLISHING_CHECKLIST.md but not logs)
+production/session-logs/
+
 .utmp/
 /[Ll]ibrary/
 /[Tt]emp/
