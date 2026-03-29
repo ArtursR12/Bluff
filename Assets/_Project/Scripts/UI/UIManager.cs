@@ -2141,6 +2141,9 @@ public class UIManager : MonoBehaviour
             }
         }
 
+        // Guard: if no current player (rare edge case mid-transition) skip refresh
+        if (state.CurrentPlayer == null) return;
+
         // Status + turn pulse
         bool isMyTurn = state.CurrentPlayer.Id == localPlayerId;
         int curPlayerIdx = state.CurrentPlayerIndex;
@@ -2257,36 +2260,49 @@ public class UIManager : MonoBehaviour
             _believeButton.interactable = false;
             _bluffButton.interactable   = false;
             _rebetButton.interactable   = false;
-            _selectionInfoText.text     = $"Waiting for {state.CurrentPlayer?.Name ?? "opponent"}...";
+            _selectionInfoText.text     = $"Waiting for {state.CurrentPlayer.Name}...";
         }
         else if (!hasCards && hasBet)
         {
             // No cards but must challenge
             _believeButton.interactable = true;
-            _bluffButton.interactable = true;
-            _rebetButton.interactable = false;
-            _selectionInfoText.text = "You have no cards - Believe or Bluff!";
+            _bluffButton.interactable   = true;
+            _rebetButton.interactable   = false;
+            _selectionInfoText.text     = "No cards left — Believe or Bluff!";
         }
         else if (!hasBet)
         {
-            // No active bet - must bet
+            // No active bet — must open a new round
             _believeButton.interactable = false;
-            _bluffButton.interactable = false;
-            _rebetButton.interactable = true;
-            _selectionInfoText.text = "Select 1-4 cards to bet";
+            _bluffButton.interactable   = false;
+            _rebetButton.interactable   = true;
+            _selectionInfoText.text = _selectedCardIndices.Count > 0
+                ? $"{_selectedCardIndices.Count} card(s) selected — tap Bet to declare a rank"
+                : "Select 1–4 cards, then tap Bet";
         }
         else
         {
-            // Has cards and active bet - all options
+            // Has cards and active bet — all options available
             _believeButton.interactable = canChallenge;
-            _bluffButton.interactable = canChallenge;
-            _rebetButton.interactable = true;
-            if (_selectedCardIndices.Count > 0)
-                _selectionInfoText.text = $"{_selectedCardIndices.Count} card(s) — Re-bet, Believe, or Bluff";
+            _bluffButton.interactable   = canChallenge;
+            _rebetButton.interactable   = true;
+            int sel = _selectedCardIndices.Count;
+            int remaining = hasCards ? localPlayer.Hand.Count - sel : 0;
+            if (sel > 0)
+            {
+                string remHint = remaining > 0
+                    ? $"  <size=10><color=#8899aa>({remaining} left)</color></size>"
+                    : "  <size=10><color=#ffaa55>(all in)</color></size>";
+                _selectionInfoText.text = canChallenge
+                    ? $"{sel} card(s) selected — Re-bet{remHint}  ·  or Believe / Bluff"
+                    : $"{sel} card(s) selected — Re-bet{remHint}";
+            }
             else
+            {
                 _selectionInfoText.text = canChallenge
                     ? "Believe · Bluff · or select cards to Re-bet"
-                    : "Select cards to Re-bet";
+                    : "Your bet — select cards to Re-bet";
+            }
         }
 
         MaybeScheduleBotTurn(state);
