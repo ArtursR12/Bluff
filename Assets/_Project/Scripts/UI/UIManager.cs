@@ -1364,10 +1364,13 @@ public class UIManager : MonoBehaviour
             badgeRect.anchorMax = new Vector2(0.98f, 0.79f);
             badgeRect.offsetMin = Vector2.zero;
             badgeRect.offsetMax = Vector2.zero;
-            // Pill background
+            // Pill background — red when 1–2 cards (danger), grey when out, green otherwise
+            bool lowCards = opp.CardCount > 0 && opp.CardCount <= 2;
             badgeGo.AddComponent<Image>().color = opp.CardCount == 0
                 ? new Color(0.2f, 0.2f, 0.2f, 0.6f)
-                : new Color(0.06f, 0.18f, 0.06f, 0.8f);
+                : lowCards
+                    ? new Color(0.45f, 0.12f, 0.05f, 0.85f)
+                    : new Color(0.06f, 0.18f, 0.06f, 0.8f);
             // Count text
             GameObject bTxt = new GameObject("T");
             bTxt.transform.SetParent(badgeGo.transform, false);
@@ -1379,7 +1382,9 @@ public class UIManager : MonoBehaviour
             badgeTmp.fontSize  = opp.CardCount == 0 ? 8 : 12;
             badgeTmp.color     = opp.CardCount == 0
                 ? new Color(0.5f, 0.5f, 0.5f)
-                : new Color(0.55f, 1f, 0.55f, 1f);
+                : lowCards
+                    ? new Color(1f, 0.55f, 0.30f, 1f)
+                    : new Color(0.55f, 1f, 0.55f, 1f);
             badgeTmp.fontStyle = FontStyles.Bold;
             badgeTmp.alignment = TextAlignmentOptions.Center;
 
@@ -2249,9 +2254,10 @@ public class UIManager : MonoBehaviour
             int myCards = localPlayer.Hand.Count;
             Color myColor = GetPlayerColor(int.TryParse(localPlayerId, out int lIdx) ? lIdx : 0);
             string myHex = ColorUtility.ToHtmlStringRGB(myColor);
-            _localPlayerInfoText.text = myCards > 0
-                ? $"<color=#{myHex}>{localPlayer.Name}</color>  ·  {myCards} cards"
-                : $"<color=#{myHex}>{localPlayer.Name}</color>  ·  no cards";
+            string cardStr = myCards == 0 ? "no cards"
+                : myCards <= 2        ? $"<color=#ff8844>{myCards} cards</color>"
+                : $"{myCards} cards";
+            _localPlayerInfoText.text = $"<color=#{myHex}>{localPlayer.Name}</color>  ·  {cardStr}";
         }
 
         // Notify once when local player empties their hand

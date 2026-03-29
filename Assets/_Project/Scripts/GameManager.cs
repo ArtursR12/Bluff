@@ -157,7 +157,9 @@ public class GameManager : MonoBehaviour, IGameManager
 
         bool canChallenge = GameRules.CanChallenge(_state, bot);
         bool hasCards     = bot.Hand.Count > 0;
-        bool doChallenge  = canChallenge && (!hasCards || UnityEngine.Random.value < 0.40f);
+        // Challenge probability rises as pile grows — large piles are dangerous to take
+        float challengeP  = 0.38f + Mathf.Clamp01((_state.Pile.Count - 3) * 0.045f);
+        bool doChallenge  = canChallenge && (!hasCards || UnityEngine.Random.value < challengeP);
 
         if (doChallenge)
         {
@@ -185,7 +187,11 @@ public class GameManager : MonoBehaviour, IGameManager
         {
             int count = Mathf.Min(UnityEngine.Random.Range(1, 3), bot.Hand.Count);
             var cards = bot.Hand.GetRange(0, count);
-            TryPlaceBet(cards, _state.LastDeclaredRank);
+            Rank reBetRank = _state.LastDeclaredRank;
+            // 20% chance to bluff a different rank on re-bet (shift by 1–3 ranks)
+            if (UnityEngine.Random.value < 0.20f)
+                reBetRank = (Rank)(2 + ((int)reBetRank - 2 + UnityEngine.Random.Range(1, 4)) % 13);
+            TryPlaceBet(cards, reBetRank);
             return ("Bet", null, false, playerName, "", "");
         }
 
