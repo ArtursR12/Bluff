@@ -1778,10 +1778,25 @@ public class UIManager : MonoBehaviour
             waited += Time.deltaTime;
             yield return null;
         }
-        yield return new WaitForSeconds(0.65f);
 
-        _botTurnRoutine = null;
         if (!(_gameManager is GameManager gm)) yield break;
+
+        // Show "thinking" indicator in status bar while the bot pauses
+        GameState preState = gm.GetState();
+        if (preState?.CurrentPlayer != null && preState.CurrentPlayer.Id != _localPlayerId)
+        {
+            string tHex = ColorUtility.ToHtmlStringRGB(GetPlayerColor(preState.CurrentPlayerIndex));
+            if (_statusText != null)
+            {
+                _statusText.text      = $"<color=#{tHex}>{preState.CurrentPlayer.Name}</color> is thinking...";
+                _statusText.fontStyle = FontStyles.Italic;
+            }
+        }
+
+        // Slightly randomised delay — feels less robotic
+        yield return new WaitForSeconds(UnityEngine.Random.Range(0.50f, 1.05f));
+        _botTurnRoutine = null;
+
         GameState state = gm.GetState();
         if (state == null || state.Phase != GamePhase.Playing) yield break;
         if (state.CurrentPlayer?.Id == _localPlayerId) yield break;

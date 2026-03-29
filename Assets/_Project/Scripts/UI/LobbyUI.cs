@@ -46,6 +46,8 @@ public class LobbyUI : MonoBehaviour
     private int _deckChoice    = 0;  // 0=Auto 1=36   2=52
     private int _maxPlayers    = 6;  // 2–6
     private TextMeshProUGUI _maxPlayersLabel;
+    private int _botCount = 2;  // 1–3 bots for Practice mode
+    private TextMeshProUGUI _botCountLabel;
     private TextMeshProUGUI _waitingRoomCodeText;
     private static readonly float[] TimerValues    = { 15f,  30f,    60f   };
     private static readonly string[] TimerLabels   = { "15s", "30s", "60s" };
@@ -303,13 +305,13 @@ public class LobbyUI : MonoBehaviour
             _lobbyMuteLabel.color     = new Color(L_Gold.r, L_Gold.g, L_Gold.b, 0.70f);
         }
 
-        // "Practice vs Bot" button — centre of bottom bar (between rules and mute)
+        // "Practice vs Bots" button — left portion of centre bottom bar
         {
             GameObject practiceFrame = new GameObject("PracticeFrame");
             practiceFrame.transform.SetParent(_lobbyPanel.transform, false);
             RectTransform pfr = practiceFrame.AddComponent<RectTransform>();
             pfr.anchorMin = new Vector2(0.24f, 0.005f);
-            pfr.anchorMax = new Vector2(0.72f, 0.038f);
+            pfr.anchorMax = new Vector2(0.59f, 0.038f);
             pfr.offsetMin = pfr.offsetMax = Vector2.zero;
             practiceFrame.AddComponent<Image>().color = new Color(0.08f, 0.12f, 0.22f, 0.80f);
             Button practiceBtn = practiceFrame.AddComponent<Button>();
@@ -324,6 +326,29 @@ public class LobbyUI : MonoBehaviour
             pTmp.fontSize  = 9;
             pTmp.alignment = TextAlignmentOptions.Center;
             pTmp.color     = new Color(L_Gold.r, L_Gold.g, L_Gold.b, 0.55f);
+        }
+
+        // Bot count toggle — right portion of centre bottom bar
+        {
+            GameObject botCountFrame = new GameObject("BotCountFrame");
+            botCountFrame.transform.SetParent(_lobbyPanel.transform, false);
+            RectTransform bcr = botCountFrame.AddComponent<RectTransform>();
+            bcr.anchorMin = new Vector2(0.60f, 0.005f);
+            bcr.anchorMax = new Vector2(0.72f, 0.038f);
+            bcr.offsetMin = bcr.offsetMax = Vector2.zero;
+            botCountFrame.AddComponent<Image>().color = new Color(0.10f, 0.16f, 0.28f, 0.85f);
+            Button botCountBtn = botCountFrame.AddComponent<Button>();
+            botCountBtn.onClick.AddListener(OnBotCountToggle);
+            GameObject botCountLblGo = new GameObject("Lbl");
+            botCountLblGo.transform.SetParent(botCountFrame.transform, false);
+            RectTransform bclr = botCountLblGo.AddComponent<RectTransform>();
+            bclr.anchorMin = Vector2.zero; bclr.anchorMax = Vector2.one;
+            bclr.offsetMin = bclr.offsetMax = Vector2.zero;
+            _botCountLabel = botCountLblGo.AddComponent<TextMeshProUGUI>();
+            _botCountLabel.text      = "2 Bots ↻";
+            _botCountLabel.fontSize  = 8;
+            _botCountLabel.alignment = TextAlignmentOptions.Center;
+            _botCountLabel.color     = new Color(L_Gold.r, L_Gold.g, L_Gold.b, 0.75f);
         }
 
         // "?" rules button — bottom left corner
@@ -671,6 +696,13 @@ public class LobbyUI : MonoBehaviour
         }
     }
 
+    private void OnBotCountToggle()
+    {
+        _botCount = (_botCount % 3) + 1; // 1 → 2 → 3 → 1
+        if (_botCountLabel != null)
+            _botCountLabel.text = _botCount == 1 ? "1 Bot  ↻" : $"{_botCount} Bots ↻";
+    }
+
     private void OnPracticeClicked()
     {
         if (GameManager.Instance == null)
@@ -687,8 +719,9 @@ public class LobbyUI : MonoBehaviour
         PlayerPrefs.SetString("bluff_player_name", playerName);
         PlayerPrefs.Save();
         Hide();
-        GameManager.Instance.StartGame(new System.Collections.Generic.List<string>
-            { playerName, "Bot 1", "Bot 2" });
+        var names = new System.Collections.Generic.List<string> { playerName };
+        for (int i = 1; i <= _botCount; i++) names.Add($"Bot {i}");
+        GameManager.Instance.StartGame(names);
         UIManager.Instance?.ShowGameUI();
         UIManager.Instance?.RefreshUI(GameManager.Instance.GetState(), "0");
     }
