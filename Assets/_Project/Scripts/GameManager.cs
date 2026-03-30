@@ -187,11 +187,8 @@ public class GameManager : MonoBehaviour, IGameManager
         {
             int count = Mathf.Min(UnityEngine.Random.Range(1, 3), bot.Hand.Count);
             var cards = bot.Hand.GetRange(0, count);
-            Rank reBetRank = _state.LastDeclaredRank;
-            // 20% chance to bluff a different rank on re-bet (shift by 1–3 ranks)
-            if (UnityEngine.Random.value < 0.20f)
-                reBetRank = (Rank)(2 + ((int)reBetRank - 2 + UnityEngine.Random.Range(1, 4)) % 13);
-            TryPlaceBet(cards, reBetRank);
+            // Re-bet must declare the same rank as the active bet (game rule)
+            TryPlaceBet(cards, _state.LastDeclaredRank);
             return ("Bet", null, false, playerName, "", "");
         }
 
