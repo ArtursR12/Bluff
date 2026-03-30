@@ -10,4 +10,5 @@ public interface IGameManager
     void PlaceBet(int[] cardIndices, int declaredRankInt);
     void Believe(int cardIndex);
     void Bluff(int cardIndex);
+    bool IsShortDeck { get; }
 }

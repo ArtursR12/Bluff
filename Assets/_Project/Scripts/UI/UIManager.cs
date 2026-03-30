@@ -525,10 +525,16 @@ public class UIManager : MonoBehaviour
         _bottomPanel.SetActive(true);
 
         // Seed the action log with a start marker so it's never blank at round 0
-        string startLabel = NetworkedGameManager.Instance != null
-            ? (NetworkedGameManager.Instance.IsShortDeck ? "36-card deck" : "52-card deck")
-            : "offline";
-        AddActionLog($"<color=#445544>── game started  ({startLabel}) ──────────</color>");
+        bool startShortDeck = _gameManager?.IsShortDeck ?? false;
+        string startLabel = startShortDeck ? "36-card deck" : "52-card deck";
+        string diffLabel = "";
+        if (_gameManager is GameManager offlineGm)
+        {
+            string[] diffNames = { "Easy", "Medium", "Hard" };
+            int d = Mathf.Clamp(offlineGm.BotDifficulty, 0, 2);
+            diffLabel = $"  ·  {diffNames[d]}";
+        }
+        AddActionLog($"<color=#445544>── game started  ({startLabel}{diffLabel}) ──────────</color>");
 
         // Offline: play deal sound + start game music (online path uses NetworkedGameManager.OnGameStarted event)
         if (NetworkedGameManager.Instance == null)
@@ -2121,7 +2127,7 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        bool shortDeck = NetworkedGameManager.Instance != null && NetworkedGameManager.Instance.IsShortDeck;
+        bool shortDeck = _gameManager?.IsShortDeck ?? false;
         RankPickerUI.Instance.Show((rank) =>
         {
             _gameManager.PlaceBet(cardIndices, (int)rank);

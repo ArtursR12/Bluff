@@ -8,6 +8,11 @@ public class GameManager : MonoBehaviour, IGameManager
 
     private GameState _state = new GameState();
     private Deck _deck = new Deck();
+    private bool _shortDeck;
+
+    // 0 = Easy, 1 = Medium (default), 2 = Hard
+    public int BotDifficulty { get; set; } = 1;
+    public bool IsShortDeck => _shortDeck;
 
     void Awake()
     {
@@ -18,8 +23,8 @@ public class GameManager : MonoBehaviour, IGameManager
 
     public void StartGame(List<string> playerNames)
     {
-        bool shortDeck = playerNames.Count <= 3;
-        _deck.Initialize(shortDeck);
+        _shortDeck = playerNames.Count <= 3;
+        _deck.Initialize(_shortDeck);
         _deck.Shuffle();
 
         List<Player> players = new List<Player>();
@@ -141,15 +146,45 @@ public class GameManager : MonoBehaviour, IGameManager
         Player bot = _state.CurrentPlayer;
         string playerName = bot.Name;
 
+        // Difficulty-based parameters
+        // Easy: passive (low challenge rate, bluffs a lot, bets few cards)
+        // Medium: balanced (current defaults)
+        // Hard: aggressive (high challenge rate, rarely bluffs, bets more cards)
+        float bluffChance;
+        float challengeBase;
+        float challengeScale;
+        int maxBetCards;
+        switch (BotDifficulty)
+        {
+            case 0: // Easy
+                bluffChance    = 0.55f;
+                challengeBase  = 0.18f;
+                challengeScale = 0.025f;
+                maxBetCards    = 2;
+                break;
+            case 2: // Hard
+                bluffChance    = 0.12f;
+                challengeBase  = 0.52f;
+                challengeScale = 0.065f;
+                maxBetCards    = 4;
+                break;
+            default: // Medium
+                bluffChance    = 0.30f;
+                challengeBase  = 0.38f;
+                challengeScale = 0.045f;
+                maxBetCards    = 2;
+                break;
+        }
+
         if (!_state.HasActiveBet)
         {
             if (bot.Hand.Count == 0) return ("", null, false, "", "", "");
-            int count = Mathf.Min(UnityEngine.Random.Range(1, 3), bot.Hand.Count);
+            int count = Mathf.Min(UnityEngine.Random.Range(1, maxBetCards + 1), bot.Hand.Count);
             var cards = bot.Hand.GetRange(0, count);
             Rank rank = cards[0].Rank;
-            // 30% chance to declare a different rank (bluff)
+            // Chance to declare a different rank (bluff) — controlled by difficulty
             // Rank enum: Two=2..Ace=14 (13 values); map to 0-based index, offset, map back.
-            if (UnityEngine.Random.value < 0.30f)
+            if (UnityEngine.Random.value < bluffChance)
                 rank = (Rank)(2 + ((int)rank - 2 + UnityEngine.Random.Range(1, 13)) % 13);
             TryPlaceBet(cards, rank);
             return ("Bet", null, false, playerName, "", "");
@@ -158,7 +193,7 @@ public class GameManager : MonoBehaviour, IGameManager
         bool canChallenge = GameRules.CanChallenge(_state, bot);
         bool hasCards     = bot.Hand.Count > 0;
         // Challenge probability rises as pile grows — large piles are dangerous to take
-        float challengeP  = 0.38f + Mathf.Clamp01((_state.Pile.Count - 3) * 0.045f);
+        float challengeP  = challengeBase + Mathf.Clamp01((_state.Pile.Count - 3) * challengeScale);
         bool doChallenge  = canChallenge && (!hasCards || UnityEngine.Random.value < challengeP);
 
         if (doChallenge)
@@ -185,7 +220,7 @@ public class GameManager : MonoBehaviour, IGameManager
         }
         else if (hasCards)
         {
-            int count = Mathf.Min(UnityEngine.Random.Range(1, 3), bot.Hand.Count);
+            int count = Mathf.Min(UnityEngine.Random.Range(1, maxBetCards + 1), bot.Hand.Count);
             var cards = bot.Hand.GetRange(0, count);
             // Re-bet must declare the same rank as the active bet (game rule)
             TryPlaceBet(cards, _state.LastDeclaredRank);

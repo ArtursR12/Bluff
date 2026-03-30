@@ -48,6 +48,9 @@ public class LobbyUI : MonoBehaviour
     private TextMeshProUGUI _maxPlayersLabel;
     private int _botCount = 2;  // 1–3 bots for Practice mode
     private TextMeshProUGUI _botCountLabel;
+    private int _botDifficulty = 1;  // 0=Easy 1=Medium 2=Hard
+    private TextMeshProUGUI _botDifficultyLabel;
+    private static readonly string[] DifficultyLabels = { "Easy", "Med", "Hard" };
     private TextMeshProUGUI _waitingRoomCodeText;
     private static readonly float[] TimerValues    = { 15f,  30f,    60f   };
     private static readonly string[] TimerLabels   = { "15s", "30s", "60s" };
@@ -76,8 +79,11 @@ public class LobbyUI : MonoBehaviour
         if (!string.IsNullOrEmpty(savedCode)) _roomCodeInput.text = savedCode;
 
         // Restore last-used host settings
-        _timerChoice = PlayerPrefs.GetInt("bluff_timer_choice", 1);
-        _deckChoice  = PlayerPrefs.GetInt("bluff_deck_choice",  0);
+        _timerChoice   = PlayerPrefs.GetInt("bluff_timer_choice",   1);
+        _deckChoice    = PlayerPrefs.GetInt("bluff_deck_choice",    0);
+        _botDifficulty = PlayerPrefs.GetInt("bluff_bot_difficulty", 1);
+        if (_botDifficultyLabel != null)
+            _botDifficultyLabel.text = DifficultyLabels[_botDifficulty];
         int savedMax = PlayerPrefs.GetInt("bluff_max_players", 6);
         int maxIdx = System.Array.IndexOf(MaxPlayerOpts, savedMax);
         if (maxIdx >= 0) _maxPlayers = savedMax;
@@ -315,13 +321,13 @@ public class LobbyUI : MonoBehaviour
             _lobbyMuteLabel.color     = new Color(L_Gold.r, L_Gold.g, L_Gold.b, 0.70f);
         }
 
-        // "Practice vs Bots" button — left portion of centre bottom bar
+        // "Practice vs Bots" button — centre-left of bottom bar
         {
             GameObject practiceFrame = new GameObject("PracticeFrame");
             practiceFrame.transform.SetParent(_lobbyPanel.transform, false);
             RectTransform pfr = practiceFrame.AddComponent<RectTransform>();
             pfr.anchorMin = new Vector2(0.24f, 0.005f);
-            pfr.anchorMax = new Vector2(0.59f, 0.038f);
+            pfr.anchorMax = new Vector2(0.50f, 0.038f);
             pfr.offsetMin = pfr.offsetMax = Vector2.zero;
             practiceFrame.AddComponent<Image>().color = new Color(0.08f, 0.12f, 0.22f, 0.80f);
             Button practiceBtn = practiceFrame.AddComponent<Button>();
@@ -338,13 +344,36 @@ public class LobbyUI : MonoBehaviour
             pTmp.color     = new Color(L_Gold.r, L_Gold.g, L_Gold.b, 0.55f);
         }
 
-        // Bot count toggle — right portion of centre bottom bar
+        // Bot difficulty toggle (Easy / Med / Hard)
+        {
+            GameObject diffFrame = new GameObject("DiffFrame");
+            diffFrame.transform.SetParent(_lobbyPanel.transform, false);
+            RectTransform dfr = diffFrame.AddComponent<RectTransform>();
+            dfr.anchorMin = new Vector2(0.51f, 0.005f);
+            dfr.anchorMax = new Vector2(0.61f, 0.038f);
+            dfr.offsetMin = dfr.offsetMax = Vector2.zero;
+            diffFrame.AddComponent<Image>().color = new Color(0.10f, 0.14f, 0.26f, 0.85f);
+            Button diffBtn = diffFrame.AddComponent<Button>();
+            diffBtn.onClick.AddListener(OnDifficultyToggle);
+            GameObject diffLblGo = new GameObject("Lbl");
+            diffLblGo.transform.SetParent(diffFrame.transform, false);
+            RectTransform dlr = diffLblGo.AddComponent<RectTransform>();
+            dlr.anchorMin = Vector2.zero; dlr.anchorMax = Vector2.one;
+            dlr.offsetMin = dlr.offsetMax = Vector2.zero;
+            _botDifficultyLabel = diffLblGo.AddComponent<TextMeshProUGUI>();
+            _botDifficultyLabel.text      = DifficultyLabels[_botDifficulty];
+            _botDifficultyLabel.fontSize  = 8;
+            _botDifficultyLabel.alignment = TextAlignmentOptions.Center;
+            _botDifficultyLabel.color     = new Color(L_Gold.r, L_Gold.g, L_Gold.b, 0.75f);
+        }
+
+        // Bot count toggle
         {
             GameObject botCountFrame = new GameObject("BotCountFrame");
             botCountFrame.transform.SetParent(_lobbyPanel.transform, false);
             RectTransform bcr = botCountFrame.AddComponent<RectTransform>();
-            bcr.anchorMin = new Vector2(0.60f, 0.005f);
-            bcr.anchorMax = new Vector2(0.72f, 0.038f);
+            bcr.anchorMin = new Vector2(0.62f, 0.005f);
+            bcr.anchorMax = new Vector2(0.73f, 0.038f);
             bcr.offsetMin = bcr.offsetMax = Vector2.zero;
             botCountFrame.AddComponent<Image>().color = new Color(0.10f, 0.16f, 0.28f, 0.85f);
             Button botCountBtn = botCountFrame.AddComponent<Button>();
@@ -713,6 +742,15 @@ public class LobbyUI : MonoBehaviour
             _botCountLabel.text = _botCount == 1 ? "1 Bot  ↻" : $"{_botCount} Bots ↻";
     }
 
+    private void OnDifficultyToggle()
+    {
+        _botDifficulty = (_botDifficulty + 1) % 3; // 0→1→2→0
+        if (_botDifficultyLabel != null)
+            _botDifficultyLabel.text = DifficultyLabels[_botDifficulty];
+        PlayerPrefs.SetInt("bluff_bot_difficulty", _botDifficulty);
+        PlayerPrefs.Save();
+    }
+
     private void OnPracticeClicked()
     {
         if (GameManager.Instance == null)
@@ -731,6 +769,7 @@ public class LobbyUI : MonoBehaviour
         Hide();
         var names = new System.Collections.Generic.List<string> { playerName };
         for (int i = 1; i <= _botCount; i++) names.Add($"Bot {i}");
+        GameManager.Instance.BotDifficulty = _botDifficulty;
         GameManager.Instance.StartGame(names);
         UIManager.Instance?.ShowGameUI();
         UIManager.Instance?.RefreshUI(GameManager.Instance.GetState(), "0");

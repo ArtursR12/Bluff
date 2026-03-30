@@ -1105,6 +1105,8 @@ public class NetworkedGameManager : NetworkBehaviour, IGameManager
     public void PlaceBet(int[] cardIndices, int declaredRankInt) => RPC_PlaceBet(cardIndices, declaredRankInt);
     void IGameManager.Believe(int cardIndex) => RPC_Believe(cardIndex);
     void IGameManager.Bluff(int cardIndex) => RPC_Bluff(cardIndex);
+    // NetworkBool IsShortDeck is the networked property; expose as bool through the interface
+    bool IGameManager.IsShortDeck => IsShortDeck;
 
     public GameState GetLocalState() => _localState;
 }
