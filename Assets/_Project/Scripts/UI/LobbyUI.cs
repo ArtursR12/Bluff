@@ -75,6 +75,16 @@ public class LobbyUI : MonoBehaviour
         string savedCode = PlayerPrefs.GetString("bluff_room_code", "");
         if (!string.IsNullOrEmpty(savedCode)) _roomCodeInput.text = savedCode;
 
+        // Restore last-used host settings
+        _timerChoice = PlayerPrefs.GetInt("bluff_timer_choice", 1);
+        _deckChoice  = PlayerPrefs.GetInt("bluff_deck_choice",  0);
+        int savedMax = PlayerPrefs.GetInt("bluff_max_players", 6);
+        int maxIdx = System.Array.IndexOf(MaxPlayerOpts, savedMax);
+        if (maxIdx >= 0) _maxPlayers = savedMax;
+        if (_timerLabel     != null) _timerLabel.text     = TimerLabels[_timerChoice];
+        if (_deckLabel      != null) _deckLabel.text      = DeckLabels[_deckChoice];
+        if (_maxPlayersLabel != null) _maxPlayersLabel.text = _maxPlayers.ToString();
+
         // Show lifetime stats as initial status hint
         int ltGames = PlayerPrefs.GetInt("bluff_games", 0);
         if (ltGames > 0 && _statusText != null)
@@ -804,6 +814,8 @@ public class LobbyUI : MonoBehaviour
     {
         _timerChoice = (_timerChoice + 1) % TimerLabels.Length;
         if (_timerLabel != null) _timerLabel.text = TimerLabels[_timerChoice];
+        PlayerPrefs.SetInt("bluff_timer_choice", _timerChoice);
+        PlayerPrefs.Save();
         NetworkedGameManager.Instance?.SetLobbySettings(TimerValues[_timerChoice], _deckChoice);
     }
 
@@ -811,6 +823,8 @@ public class LobbyUI : MonoBehaviour
     {
         _deckChoice = (_deckChoice + 1) % DeckLabels.Length;
         if (_deckLabel != null) _deckLabel.text = DeckLabels[_deckChoice];
+        PlayerPrefs.SetInt("bluff_deck_choice", _deckChoice);
+        PlayerPrefs.Save();
         NetworkedGameManager.Instance?.SetLobbySettings(TimerValues[_timerChoice], _deckChoice);
     }
 
@@ -836,6 +850,8 @@ public class LobbyUI : MonoBehaviour
         int idx = System.Array.IndexOf(MaxPlayerOpts, _maxPlayers);
         _maxPlayers = MaxPlayerOpts[(idx + 1) % MaxPlayerOpts.Length];
         if (_maxPlayersLabel != null) _maxPlayersLabel.text = _maxPlayers.ToString();
+        PlayerPrefs.SetInt("bluff_max_players", _maxPlayers);
+        PlayerPrefs.Save();
         // Max-players is baked into session creation; also update NetworkedGameManager cap
         NetworkedGameManager.Instance?.SetMaxPlayers(_maxPlayers);
     }
