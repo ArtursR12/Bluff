@@ -2242,6 +2242,16 @@ public class UIManager : MonoBehaviour
         BuildPileVisual(state.Pile.Count);
         TweenPileCount(state.Pile.Count);
         TweenDiscardCount(state.Discard.Count);
+        // Pile count colour: gold → orange → red as pile grows
+        if (_pileCountText != null)
+        {
+            int pc = state.Pile.Count;
+            _pileCountText.color = pc >= 10
+                ? new Color(1f, 0.28f, 0.20f, 1f)   // red — very large pile
+                : pc >= 6
+                    ? new Color(1f, 0.58f, 0.15f, 1f) // orange — medium pile
+                    : P_Gold;                          // gold — normal
+        }
 
         // Hand cards and button states — spectators get emoji reaction buttons
         if (isSpectator)
