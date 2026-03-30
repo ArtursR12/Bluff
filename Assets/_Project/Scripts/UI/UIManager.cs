@@ -57,6 +57,7 @@ public class UIManager : MonoBehaviour
 
     // Overlays
     private GameObject _gameOverOverlay;
+    private TextMeshProUGUI _gameOverTitleText;
     private TextMeshProUGUI _gameOverText;
     private TextMeshProUGUI _gameOverWinnersText;
     private Button _playAgainButton;
@@ -880,12 +881,12 @@ public class UIManager : MonoBehaviour
         AddHorizontalStrip(_gameOverOverlay, atBottom: false, P_Gold, 3f);
         AddHorizontalStrip(_gameOverOverlay, atBottom: true,  P_Gold, 3f);
 
-        // "GAME OVER" in gold
-        TextMeshProUGUI title = CreateText(_gameOverOverlay, "GAME OVER", 48,
+        // "GAME OVER" / "YOU WIN!" headline
+        _gameOverTitleText = CreateText(_gameOverOverlay, "GAME OVER", 48,
             new Vector2(0.05f, 0.84f), new Vector2(0.95f, 0.97f),
             TextAlignmentOptions.Center);
-        title.color     = P_Gold;
-        title.fontStyle = FontStyles.Bold;
+        _gameOverTitleText.color     = P_Gold;
+        _gameOverTitleText.fontStyle = FontStyles.Bold;
 
         // Loser line — red
         _gameOverText = CreateText(_gameOverOverlay, "", 24,
@@ -2421,6 +2422,29 @@ public class UIManager : MonoBehaviour
         _gameOverText.text = wasDisconnect
             ? $"{displayName} left the game"
             : $"{displayName} LOSES!";
+
+        // Update headline to show personal outcome
+        GameState stateForTitle = _gameManager?.GetState();
+        string myNameForTitle = stateForTitle?.Players.Find(p => p.Id == _localPlayerId)?.Name ?? "";
+        bool localLost = !string.IsNullOrEmpty(myNameForTitle) && myNameForTitle == displayName;
+        if (_gameOverTitleText != null)
+        {
+            if (wasDisconnect)
+            {
+                _gameOverTitleText.text  = "GAME OVER";
+                _gameOverTitleText.color = P_Gold;
+            }
+            else if (localLost)
+            {
+                _gameOverTitleText.text  = "YOU LOSE";
+                _gameOverTitleText.color = new Color(0.9f, 0.25f, 0.20f, 1f);
+            }
+            else
+            {
+                _gameOverTitleText.text  = "YOU WIN!";
+                _gameOverTitleText.color = new Color(0.25f, 0.92f, 0.35f, 1f);
+            }
+        }
 
         GameState state = _gameManager?.GetState();
         if (state != null)
