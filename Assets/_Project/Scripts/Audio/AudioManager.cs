@@ -162,8 +162,18 @@ public class AudioManager : MonoBehaviour
 
     // ── PUBLIC STATIC HELPERS ────────────────────────────────
 
-    public static void PlayCardClick() => Instance?.Play(Instance._clipCardClick);
-    public static void PlayBetPlaced() => Instance?.Play(Instance._clipBetPlaced);
+    public static void PlayCardClick()   => Instance?.Play(Instance._clipCardClick);
+    public static void PlayBetPlaced()   => Instance?.Play(Instance._clipBetPlaced);
+    public static void PlayYourTurn()    => Instance?.Play(Instance._clipYourTurn);
+    public static void PlayCardDeal()    => Instance?.Play(Instance._clipCardDeal);
+    public static void PlayGameMusic()   => Instance?.PlayMusic(Instance._clipGameMusic);
+    public static void PlayMenuMusic()   => Instance?.PlayMusic(Instance._clipMenuMusic);
+    public static void PlayGameOver(bool isWin)
+    {
+        if (Instance == null) return;
+        Instance.Play(isWin ? Instance._clipGameWin : Instance._clipGameLose);
+        Instance._musicSource?.Stop();
+    }
     public static void PlayCardRevealed(bool wasCorrect, string action)
     {
         if (Instance == null) return;

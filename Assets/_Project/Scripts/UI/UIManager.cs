@@ -528,6 +528,13 @@ public class UIManager : MonoBehaviour
             ? (NetworkedGameManager.Instance.IsShortDeck ? "36-card deck" : "52-card deck")
             : "offline";
         AddActionLog($"<color=#445544>── game started  ({startLabel}) ──────────</color>");
+
+        // Offline: play deal sound + start game music (online path uses NetworkedGameManager.OnGameStarted event)
+        if (NetworkedGameManager.Instance == null)
+        {
+            AudioManager.PlayGameMusic();
+            AudioManager.PlayCardDeal();
+        }
     }
 
     private void AddHorizontalStrip(GameObject parent, bool atBottom, Color color, float px = 2f)
@@ -2187,6 +2194,9 @@ public class UIManager : MonoBehaviour
         }
         if (_statusBg != null)
             _statusBg.color = isMyTurn ? P_Gold : P_Pane;
+        // Offline: fire your-turn audio when turn transitions to local player
+        if (isMyTurn && !_wasMyTurn && NetworkedGameManager.Instance == null)
+            AudioManager.PlayYourTurn();
         UpdateTurnPulse(isMyTurn);
 
         // Bet info + action log for new bets
@@ -2498,6 +2508,14 @@ public class UIManager : MonoBehaviour
         if (_waitingForHostText != null)
             _waitingForHostText.gameObject.SetActive(!isHost && !isOffline);
         if (isHost) _playAgainButton.interactable = true;
+
+        // Offline: fire game-over audio (online path uses NetworkedGameManager.OnGameOver event)
+        if (isOffline)
+        {
+            string myName = state?.Players.Find(p => p.Id == _localPlayerId)?.Name ?? "";
+            bool iLost = !string.IsNullOrEmpty(myName) && myName == displayName;
+            AudioManager.PlayGameOver(!iLost);
+        }
 
         _gameOverOverlay.SetActive(true);
     }
